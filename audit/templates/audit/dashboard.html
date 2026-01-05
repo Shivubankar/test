@@ -1,0 +1,416 @@
+{% extends 'audit/base.html' %}
+
+{% block title %}Dashboard - BlackShield AuditSource{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h2>
+            <i class="bi bi-speedometer2 me-2" style="color: var(--bs-accent);"></i>
+            Audit Dashboard
+        </h2>
+        <p class="text-muted mb-0">Governance, Risk & Compliance Management</p>
+    </div>
+    <div class="col-md-6 text-end">
+        {% if user_role == 'Admin' %}
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#engagementModal">
+            <i class="bi bi-plus-circle"></i> New Engagement
+        </button>
+        <button class="btn btn-success ms-2" data-bs-toggle="modal" data-bs-target="#controlModal">
+            <i class="bi bi-plus-circle"></i> New Control
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label class="form-label">Select Engagement:</label>
+        <select class="form-select" id="engagementSelect" onchange="window.location.href='?engagement=' + this.value">
+            <option value="">-- All Engagements --</option>
+            {% for eng in engagements %}
+            <option value="{{ eng.id }}" {% if engagement and engagement.id == eng.id %}selected{% endif %}>
+                {{ eng.title }} ({{ eng.status }})
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+{% if engagement %}
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title mb-2">
+                    <i class="bi bi-folder2-open me-2" style="color: var(--bs-accent);"></i>
+                    {{ engagement.title }}
+                </h5>
+                <p class="card-text mb-0">
+                    <span class="status-badge status-{{ engagement.status }}">{{ engagement.status }}</span>
+                    {% if engagement.lead_auditor %}
+                    <span class="ms-3" style="color: var(--bs-text-muted);">
+                        <i class="bi bi-person-badge me-1"></i>
+                        <strong>Lead Auditor:</strong> {{ engagement.lead_auditor.get_full_name|default:engagement.lead_auditor.username }}
+                    </span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead>
+                    <tr>
+                        <th>1. Control ID</th>
+                        <th>2. Control Description</th>
+                        <th>3. Request (Evidence)</th>
+                        <th>4. Documents (Workpaper)</th>
+                        <th>5. Test Performed</th>
+                        <th>6. Status</th>
+                        <th>7. Sign-Offs</th>
+                        <th>8. Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in control_requests %}
+                    {% with control=item.control request_obj=item.request %}
+                    <tr {% if request_obj and request_obj.is_locked %}class="locked-row"{% endif %}>
+                        <td><strong>{{ control.control_id }}</strong></td>
+                        <td>{{ control.description|truncatewords:15 }}</td>
+                        <td>
+                            {% if request_obj %}
+                                {% if request_obj.evidence_file %}
+                                    <a href="{% url 'download_file' 'evidence' request_obj.id %}" class="file-icon" title="{{ request_obj.evidence_file.name }}">
+                                        <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                    </a>
+                                {% else %}
+                                    {% if user_role == 'Contributor' or user_role == 'Auditor' or user_role == 'Admin' %}
+                                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#evidenceModal{{ request_obj.id }}">
+                                            <i class="bi bi-upload"></i> Upload
+                                        </button>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">No request</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if request_obj %}
+                                {% if request_obj.workpaper_file %}
+                                    <a href="{% url 'download_file' 'workpaper' request_obj.id %}" class="file-icon" title="{{ request_obj.workpaper_file.name }}">
+                                        <i class="bi bi-file-earmark-text text-primary"></i>
+                                    </a>
+                                {% else %}
+                                    {% if user_role == 'Auditor' or user_role == 'Admin' %}
+                                        <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#workpaperModal{{ request_obj.id }}">
+                                            <i class="bi bi-upload"></i> Upload
+                                        </button>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if request_obj %}
+                                {% if request_obj.auditor_test_notes %}
+                                    <span class="text-success" title="{{ request_obj.auditor_test_notes|truncatewords:20 }}">
+                                        <i class="bi bi-check-circle"></i> Completed
+                                    </span>
+                                {% else %}
+                                    {% if user_role == 'Auditor' or user_role == 'Admin' %}
+                                        <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#workpaperModal{{ request_obj.id }}">
+                                            <i class="bi bi-pencil"></i> Add Notes
+                                        </button>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if request_obj %}
+                                <span class="status-badge status-{{ request_obj.status }}">{{ request_obj.status }}</span>
+                                {% if request_obj.is_locked %}
+                                    <br><small class="text-muted"><i class="bi bi-lock"></i> Locked</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if request_obj %}
+                                {% if request_obj.reviewed_by %}
+                                    <small>
+                                        <strong>Reviewed by:</strong> {{ request_obj.reviewed_by.get_full_name|default:request_obj.reviewed_by.username }}<br>
+                                        <strong>Date:</strong> {{ request_obj.reviewed_at|date:"Y-m-d H:i" }}
+                                    </small>
+                                {% else %}
+                                    <span class="text-muted">Pending</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if request_obj %}
+                                {% if not request_obj.is_locked %}
+                                    {% if user_role == 'Auditor' or user_role == 'Admin' %}
+                                        <div class="btn-group-vertical btn-group-sm">
+                                            {% if request_obj.workpaper_file and request_obj.auditor_test_notes %}
+                                                <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#reviewModal{{ request_obj.id }}">
+                                                    <i class="bi bi-check"></i> Accept
+                                                </button>
+                                                <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#returnModal{{ request_obj.id }}">
+                                                    <i class="bi bi-x-circle"></i> Return
+                                                </button>
+                                            {% else %}
+                                                <button class="btn btn-outline-secondary btn-sm" disabled title="Upload workpaper and add test notes first">
+                                                    <i class="bi bi-lock"></i> Locked
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                {% else %}
+                                    {% if user_role == 'Admin' %}
+                                        <form method="post" action="{% url 'unlock_request' request_obj.id %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Unlock this request?')">
+                                                <i class="bi bi-unlock"></i> Unlock
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <span class="text-muted"><i class="bi bi-lock"></i> Locked</span>
+                                    {% endif %}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    {% if request_obj %}
+                    <!-- Evidence Upload Modal -->
+                    <div class="modal fade" id="evidenceModal{{ request_obj.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Upload Evidence</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="post" action="{% url 'upload_evidence' request_obj.id %}" enctype="multipart/form-data">
+                                    {% csrf_token %}
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Evidence File</label>
+                                            <input type="file" class="form-control" name="evidence_file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" required>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-primary">Upload</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Workpaper Upload Modal -->
+                    <div class="modal fade" id="workpaperModal{{ request_obj.id }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Upload Workpaper & Test Notes</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="post" action="{% url 'upload_workpaper' request_obj.id %}" enctype="multipart/form-data">
+                                    {% csrf_token %}
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Workpaper File</label>
+                                            <input type="file" class="form-control" name="workpaper_file" accept=".pdf,.doc,.docx,.xls,.xlsx">
+                                            {% if request_obj.workpaper_file %}
+                                                <small class="text-muted">Current: {{ request_obj.workpaper_file.name }}</small>
+                                            {% endif %}
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Test Performed <span class="text-danger">*</span></label>
+                                            <textarea class="form-control" name="auditor_test_notes" rows="4" required>{{ request_obj.auditor_test_notes }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-success">Save</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Review Modal - Accept -->
+                    <div class="modal fade" id="reviewModal{{ request_obj.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Accept Request</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="post" action="{% url 'review_request' request_obj.id %}">
+                                    {% csrf_token %}
+                                    <div class="modal-body">
+                                        <p>Are you sure you want to accept this request? It will be locked after acceptance.</p>
+                                        <input type="hidden" name="status" value="Accepted">
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-success">Accept</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Review Modal - Return -->
+                    <div class="modal fade" id="returnModal{{ request_obj.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Return Request</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="post" action="{% url 'review_request' request_obj.id %}">
+                                    {% csrf_token %}
+                                    <div class="modal-body">
+                                        <p>Return this request for revision?</p>
+                                        <input type="hidden" name="status" value="Returned">
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-danger">Return</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">No controls found. {% if user_role == 'Admin' %}Create a control to get started.{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Engagement Modal - Redirect -->
+<div class="modal fade" id="engagementModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Engagement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Redirecting to engagement creation form...</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="{% url 'create_engagement' %}" class="btn btn-primary">Go to Form</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Control Modal - Redirect -->
+<div class="modal fade" id="controlModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Control</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Redirecting to control creation form...</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="{% url 'create_control' %}{% if engagement %}?engagement={{ engagement.id }}{% endif %}" class="btn btn-success">Go to Form</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Force enable all buttons in modals
+        function enableModalButtons() {
+            document.querySelectorAll('.modal button').forEach(function(btn) {
+                btn.style.pointerEvents = 'auto';
+                btn.style.cursor = 'pointer';
+                btn.style.position = 'relative';
+                btn.style.zIndex = '9999';
+                btn.disabled = false;
+            });
+        }
+
+        // Enable buttons immediately
+        enableModalButtons();
+
+        // Enable buttons when modals are shown
+        document.querySelectorAll('.modal').forEach(function(modal) {
+            modal.addEventListener('show.bs.modal', function() {
+                enableModalButtons();
+            });
+            modal.addEventListener('shown.bs.modal', function() {
+                enableModalButtons();
+            });
+        });
+
+        // Make sure form submissions work
+        document.querySelectorAll('.modal form').forEach(function(form) {
+            // Remove any event listeners that might prevent submission
+            form.onsubmit = null;
+            
+            form.addEventListener('submit', function(e) {
+                console.log('Form submitting:', this.action);
+                var submitBtn = this.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                }
+                // Don't prevent default - let form submit normally
+                return true;
+            }, false);
+
+            // Also handle button clicks directly
+            var submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.addEventListener('click', function(e) {
+                    console.log('Submit button clicked');
+                    // Let the form handle submission
+                    var form = this.closest('form');
+                    if (form) {
+                        form.submit();
+                    }
+                }, false);
+            }
+        });
+    });
+</script>
+{% endblock %}

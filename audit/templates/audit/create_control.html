@@ -1,0 +1,52 @@
+{% extends 'audit/base.html' %}
+
+{% block title %}Create Control - BlackShield AuditSource{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h4>Create New Control Requirement</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="id_engagement" class="form-label">Engagement</label>
+                        {{ form.engagement }}
+                        {% if form.engagement.errors %}
+                            <div class="text-danger">{{ form.engagement.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_control_id" class="form-label">Control ID</label>
+                        {{ form.control_id }}
+                        {% if form.control_id.errors %}
+                            <div class="text-danger">{{ form.control_id.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_description" class="form-label">Description</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="text-danger">{{ form.description.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_testing_procedure" class="form-label">Test Identified</label>
+                        {{ form.testing_procedure }}
+                        {% if form.testing_procedure.errors %}
+                            <div class="text-danger">{{ form.testing_procedure.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-success">Create Control</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
