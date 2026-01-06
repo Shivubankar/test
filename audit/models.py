@@ -25,6 +25,7 @@ class Engagement(models.Model):
 
 class ControlRequirement(models.Model):
     engagement = models.ForeignKey(Engagement, on_delete=models.CASCADE, related_name='controls')
+    year = models.IntegerField(null=True, blank=True, help_text="Year for the control (1985-2050)")
     control_id = models.CharField(max_length=100)
     description = models.TextField()
     testing_procedure = models.TextField(verbose_name="Test Identified")

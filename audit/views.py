@@ -25,14 +25,30 @@ def get_user_role(user):
 @login_required
 def dashboard(request):
     engagement_id = request.GET.get('engagement')
+    year = request.GET.get('year')
     
     if engagement_id:
         engagement = get_object_or_404(Engagement, id=engagement_id)
         controls = ControlRequirement.objects.filter(engagement=engagement).select_related('engagement')
+        
+        # Filter by year if provided
+        if year:
+            try:
+                year_int = int(year)
+                controls = controls.filter(year=year_int)
+            except (ValueError, TypeError):
+                pass  # Invalid year, ignore filter
     else:
         engagement = Engagement.objects.first()
         if engagement:
             controls = ControlRequirement.objects.filter(engagement=engagement).select_related('engagement')
+            # Filter by year if provided
+            if year:
+                try:
+                    year_int = int(year)
+                    controls = controls.filter(year=year_int)
+                except (ValueError, TypeError):
+                    pass  # Invalid year, ignore filter
         else:
             controls = ControlRequirement.objects.none()
     
@@ -55,14 +71,59 @@ def dashboard(request):
     engagements = Engagement.objects.all()
     user_role = get_user_role(request.user)
     
+    # Get available years for the selected engagement
+    available_years = []
+    if engagement:
+        available_years = list(
+            ControlRequirement.objects
+            .filter(engagement=engagement)
+            .exclude(year__isnull=True)
+            .values_list('year', flat=True)
+            .distinct()
+            .order_by('-year')
+        )
+    
+    # Convert selected_year to int for template comparison
+    selected_year_int = None
+    if year:
+        try:
+            selected_year_int = int(year)
+        except (ValueError, TypeError):
+            pass
+    
     context = {
         'engagement': engagement,
         'engagements': engagements,
         'control_requests': control_requests,
         'user_role': user_role,
+        'selected_year': selected_year_int,
+        'available_years': available_years,
     }
     
     return render(request, 'audit/dashboard.html', context)
+
+
+@login_required
+def get_years(request):
+    """AJAX endpoint to get available years for an engagement"""
+    engagement_id = request.GET.get('engagement')
+    
+    if not engagement_id:
+        return JsonResponse({'years': []})
+    
+    try:
+        engagement = get_object_or_404(Engagement, id=engagement_id)
+        years = list(
+            ControlRequirement.objects
+            .filter(engagement=engagement)
+            .exclude(year__isnull=True)
+            .values_list('year', flat=True)
+            .distinct()
+            .order_by('-year')
+        )
+        return JsonResponse({'years': years})
+    except Exception as e:
+        return JsonResponse({'years': []})
 
 
 @login_required

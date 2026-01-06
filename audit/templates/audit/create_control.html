@@ -19,6 +19,13 @@
                             <div class="text-danger">{{ form.engagement.errors }}</div>
                         {% endif %}
                     </div>
+                    <div class="mb-3" id="year-field-container" style="display: none;">
+                        <label for="id_year" class="form-label">Year</label>
+                        {{ form.year }}
+                        {% if form.year.errors %}
+                            <div class="text-danger">{{ form.year.errors }}</div>
+                        {% endif %}
+                    </div>
                     <div class="mb-3">
                         <label for="id_control_id" class="form-label">Control ID</label>
                         {{ form.control_id }}
@@ -49,4 +56,29 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const engagementSelect = document.getElementById('id_engagement');
+    const yearFieldContainer = document.getElementById('year-field-container');
+    const yearSelect = document.getElementById('id_year');
+    
+    function toggleYearField() {
+        if (engagementSelect.value && engagementSelect.value !== '') {
+            yearFieldContainer.style.display = 'block';
+            yearSelect.required = true;
+        } else {
+            yearFieldContainer.style.display = 'none';
+            yearSelect.required = false;
+            yearSelect.value = '';
+        }
+    }
+    
+    // Check initial state (in case engagement is pre-selected)
+    toggleYearField();
+    
+    // Listen for changes
+    engagementSelect.addEventListener('change', toggleYearField);
+});
+</script>
 {% endblock %}
