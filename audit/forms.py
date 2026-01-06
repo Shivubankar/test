@@ -71,18 +71,16 @@ class ControlRequirementForm(forms.ModelForm):
 class EvidenceUploadForm(forms.ModelForm):
     class Meta:
         model = Request
-        fields = ['evidence_file']
+        fields = []
         widgets = {
-            'evidence_file': forms.FileInput(attrs={'class': 'form-control', 'accept': '.pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg'}),
         }
 
 
 class WorkpaperUploadForm(forms.ModelForm):
     class Meta:
         model = Request
-        fields = ['workpaper_file', 'auditor_test_notes']
+        fields = ['auditor_test_notes']
         widgets = {
-            'workpaper_file': forms.FileInput(attrs={'class': 'form-control', 'accept': '.pdf,.doc,.docx,.xls,.xlsx'}),
             'auditor_test_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Enter test performed notes...'}),
         }
 
@@ -100,9 +98,15 @@ class RequestReviewForm(forms.ModelForm):
         instance = self.instance
         
         if status == 'Accepted':
-            if not instance.workpaper_file:
-                raise forms.ValidationError("Workpaper file is required before acceptance.")
-            if not instance.auditor_test_notes or not instance.auditor_test_notes.strip():
-                raise forms.ValidationError("Test Performed notes are required before acceptance.")
+            # Mirror model-level business rule:
+            # Acceptance is allowed if either a supporting file is present
+            # (evidence OR workpaper) OR non-empty 'Test Performed' notes exist.
+            has_file = bool(instance.workpaper_file or instance.evidence_file)
+            has_notes = bool(instance.auditor_test_notes and instance.auditor_test_notes.strip())
+            if not (has_file or has_notes):
+                raise forms.ValidationError(
+                    "Either a supporting file (evidence or workpaper) "
+                    "or non-empty 'Test Performed' notes are required before acceptance."
+                )
         
         return status

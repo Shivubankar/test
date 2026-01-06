@@ -25,10 +25,12 @@
                     <i class="bi bi-person-circle"></i> {{ user.get_full_name|default:user.username }}
                     <span style="color: var(--bs-accent); font-weight: 600;">({{ user_role }})</span>
                 </span>
+                {% if user_role == 'Admin' %}
                 <a class="nav-link me-2" href="{% url 'admin:index' %}">
                     <i class="bi bi-gear"></i> Admin
                 </a>
-                <a class="nav-link" href="{% url 'admin:logout' %}">
+                {% endif %}
+                <a class="nav-link" href="{% url 'logout' %}">
                     <i class="bi bi-box-arrow-right"></i> Logout
                 </a>
             </div>
