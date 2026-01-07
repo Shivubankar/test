@@ -20,19 +20,56 @@
                 <span class="logo-text">BlackShield</span>
                 <span style="color: var(--bs-text-muted); font-weight: 400;">AuditSource</span>
             </a>
-            <div class="navbar-nav ms-auto d-flex flex-row align-items-center">
-                <span class="navbar-text me-3">
-                    <i class="bi bi-person-circle"></i> {{ user.get_full_name|default:user.username }}
-                    <span style="color: var(--bs-accent); font-weight: 600;">({{ user_role }})</span>
-                </span>
-                {% if user_role == 'Admin' %}
-                <a class="nav-link me-2" href="{% url 'admin:index' %}">
-                    <i class="bi bi-gear"></i> Admin
-                </a>
-                {% endif %}
-                <a class="nav-link" href="{% url 'logout' %}">
-                    <i class="bi bi-box-arrow-right"></i> Logout
-                </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'sheets' %}active{% endif %}" href="{% url 'sheets' %}">
+                            <i class="bi bi-table"></i> Sheets
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'forms' %}active{% endif %}" href="{% url 'forms' %}">
+                            <i class="bi bi-file-earmark-text"></i> Forms
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'questionnaires' %}active{% endif %}" href="{% url 'questionnaires' %}">
+                            <i class="bi bi-clipboard-check"></i> Questionnaires
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'requests_list' %}active{% endif %}" href="{% url 'requests_list' %}">
+                            <i class="bi bi-inbox"></i> Requests
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'documents' %}active{% endif %}" href="{% url 'documents' %}">
+                            <i class="bi bi-folder"></i> Documents
+                        </a>
+                    </li>
+                </ul>
+                <div class="navbar-nav d-flex flex-row align-items-center">
+                    <span class="navbar-text me-3">
+                        <i class="bi bi-person-circle"></i> {{ user.get_full_name|default:user.username }}
+                        <span style="color: var(--bs-accent); font-weight: 600;">({{ user_role }})</span>
+                    </span>
+                    {% if user_role == 'Admin' %}
+                    <a class="nav-link me-2" href="{% url 'admin:index' %}">
+                        <i class="bi bi-gear"></i> Admin
+                    </a>
+                    {% endif %}
+                    <a class="nav-link" href="{% url 'logout' %}">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </a>
+                </div>
             </div>
         </div>
     </nav>

@@ -1,0 +1,62 @@
+{% extends 'audit/base.html' %}
+
+{% block title %}Create Questionnaire - BlackShield AuditSource{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2>
+                <i class="bi bi-clipboard-check me-2" style="color: var(--bs-accent);"></i>
+                Create Questionnaire
+            </h2>
+            <p class="text-muted mb-0">Create a new questionnaire for {{ engagement.title }}</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Questionnaire Details</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'create_questionnaire' engagement.id %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Questionnaire Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="name" required placeholder="e.g., ISO 27001 Initial Assessment">
+                            <small class="text-muted">Give your questionnaire a descriptive name.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Standard <span class="text-danger">*</span></label>
+                            <select class="form-select" name="standard_id" required>
+                                <option value="">-- Select Standard --</option>
+                                {% for standard in standards %}
+                                <option value="{{ standard.id }}">{{ standard.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Select the audit standard. Controls from this standard will be loaded as questions.</small>
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>What happens next?</strong><br>
+                            After creating the questionnaire, all active controls from the selected standard will be loaded as questions.
+                            You can then answer each question (Yes/No/NA) and optionally add comments.
+                            When you submit the questionnaire, Sheet rows will be automatically generated for each answered question.
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg"></i> Create Questionnaire
+                            </button>
+                            <a href="{% url 'questionnaires' %}?engagement={{ engagement.id }}" class="btn btn-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,134 @@
+{% extends 'audit/base.html' %}
+
+{% block title %}Questionnaires - BlackShield AuditSource{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2>
+                <i class="bi bi-clipboard-check me-2" style="color: var(--bs-accent);"></i>
+                Questionnaires
+            </h2>
+            <p class="text-muted mb-0">Questionnaire Management & Tracking</p>
+        </div>
+        <div class="col-md-6 text-end">
+            <label class="form-label">Select Engagement:</label>
+            <select class="form-select d-inline-block w-auto ms-2" id="engagementSelect">
+                <option value="">-- All Engagements --</option>
+                {% for eng in engagements %}
+                <option value="{{ eng.id }}" {% if engagement and engagement.id == eng.id %}selected{% endif %}>
+                    {{ eng.title }} ({{ eng.status }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    {% if engagement %}
+    <!-- Questionnaires Table -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clipboard-check me-2"></i>
+                        Questionnaires for {{ engagement.title }}
+                    </h5>
+                    {% if user_role == 'Admin' or user_role == 'Control Assessor' %}
+                    <a href="{% url 'create_questionnaire' engagement.id %}" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-lg"></i> Create Questionnaire
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if questionnaires %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Standard</th>
+                                    <th>Respondent</th>
+                                    <th>Status</th>
+                                    <th>Completion</th>
+                                    <th>Last Updated</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for q in questionnaires %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ q.name }}</strong>
+                                    </td>
+                                    <td>{{ q.standard.name }}</td>
+                                    <td>
+                                        {% if q.respondent %}
+                                        {{ q.respondent.get_full_name|default:q.respondent.username }}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if q.status == 'Completed' %}success{% elif q.status == 'Open' %}primary{% else %}secondary{% endif %}">
+                                            {{ q.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px; width: 100px;">
+                                            <div class="progress-bar" role="progressbar" style="width: {{ q.get_completion_percentage }}%">
+                                                {{ q.get_completion_percentage }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ q.updated_at|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        <a href="{% url 'questionnaire_detail' q.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <!-- Empty State -->
+                    <div class="text-center py-5">
+                        <i class="bi bi-clipboard-check text-muted" style="font-size: 3.5rem;"></i>
+                        <h5 class="mt-3 mb-2">No Questionnaires yet</h5>
+                        <p class="text-muted mb-4">Create a questionnaire to collect structured answers from clients/auditors.</p>
+                        {% if user_role == 'Admin' or user_role == 'Control Assessor' %}
+                        <a href="{% url 'create_questionnaire' engagement.id %}" class="btn btn-primary">
+                            <i class="bi bi-plus-lg"></i> Create Questionnaire
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>
+        Please select an engagement to view questionnaires.
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.getElementById('engagementSelect')?.addEventListener('change', function() {
+    const engagementId = this.value;
+    const url = new URL(window.location.href);
+    if (engagementId) {
+        url.searchParams.set('engagement', engagementId);
+    } else {
+        url.searchParams.delete('engagement');
+    }
+    window.location.href = url.toString();
+});
+</script>
+{% endblock %}

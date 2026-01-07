@@ -1,0 +1,73 @@
+{% extends 'audit/base.html' %}
+
+{% block title %}Forms - BlackShield AuditSource{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h2>
+            <i class="bi bi-file-earmark-text me-2" style="color: var(--bs-accent);"></i>
+            Forms
+        </h2>
+        <p class="text-muted mb-0">Structured Audit Forms (Client Profile, SOC 2 Scope, Section III, etc.)</p>
+    </div>
+    <div class="col-md-6 text-end">
+        <label class="form-label">Select Engagement:</label>
+        <select class="form-select d-inline-block w-auto ms-2" id="engagementSelect">
+            <option value="">-- All Engagements --</option>
+            {% for eng in engagements %}
+            <option value="{{ eng.id }}" {% if engagement and engagement.id == eng.id %}selected{% endif %}>
+                {{ eng.title }} ({{ eng.status }})
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+{% if engagement %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-file-earmark-text me-2"></i>
+                    Forms for {{ engagement.title }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Forms module is currently in development. This will support:
+                    <ul class="mb-0 mt-2">
+                        <li>Client Profile forms</li>
+                        <li>SOC 2 Scope forms</li>
+                        <li>Section III forms</li>
+                        <li>Save as draft functionality</li>
+                        <li>Sign-off and reviewer approval</li>
+                        <li>Link forms to engagements</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>
+    Please select an engagement to view forms.
+</div>
+{% endif %}
+
+<script>
+document.getElementById('engagementSelect').addEventListener('change', function() {
+    const engagementId = this.value;
+    const url = new URL(window.location.href);
+    if (engagementId) {
+        url.searchParams.set('engagement', engagementId);
+    } else {
+        url.searchParams.delete('engagement');
+    }
+    window.location.href = url.toString();
+});
+</script>
+{% endblock %}

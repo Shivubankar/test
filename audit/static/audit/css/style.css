@@ -496,3 +496,154 @@ h4, h5 {
     border-radius: 8px;
     overflow: hidden;
 }
+
+/* Table scroll wrapper - horizontal scroll for entire table */
+.table-scroll-wrapper {
+    overflow-x: auto;
+    width: 100%;
+}
+
+.dashboard-table {
+    min-width: 1400px;
+    table-layout: auto;
+}
+
+/* Document list - vertical scrollable inside table cell */
+.document-list {
+    max-height: 120px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: block;
+    padding: 4px 0;
+}
+
+.document-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+.document-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+}
+
+.document-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+}
+
+.document-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* Vertical document item - one per line */
+.document-item-vertical {
+    display: block;
+    padding: 4px 6px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    position: relative;
+}
+
+.document-item-vertical:last-of-type {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.document-item-vertical:hover {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 3px;
+}
+
+.document-link-vertical {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    color: var(--bs-text-muted);
+    font-size: 0.8rem;
+    transition: color 0.2s;
+}
+
+.document-link-vertical:hover {
+    color: var(--bs-text);
+}
+
+.document-link-vertical i {
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.document-filename-vertical {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.document-delete-vertical {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: opacity 0.2s;
+    margin: 0;
+    padding: 0;
+}
+
+.document-item-vertical:hover .document-delete-vertical {
+    opacity: 1;
+}
+
+.btn-delete-vertical {
+    background: transparent;
+    border: none;
+    color: var(--bs-danger);
+    padding: 2px 4px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+    line-height: 1;
+}
+
+.btn-delete-vertical:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+}
+
+.document-empty-vertical {
+    padding: 8px 6px;
+    font-size: 0.75rem;
+    color: var(--bs-text-muted);
+    font-style: italic;
+    text-align: center;
+}
+
+.document-add-button-wrapper {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-add-document-vertical {
+    width: 100%;
+    padding: 4px 8px;
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 4px;
+    color: var(--bs-accent);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.btn-add-document-vertical:hover {
+    background: rgba(99, 102, 241, 0.25);
+    border-color: var(--bs-accent);
+    color: var(--bs-accent-light);
+}
