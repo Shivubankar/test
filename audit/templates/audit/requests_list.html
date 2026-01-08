@@ -157,15 +157,24 @@
             <p class="text-muted mb-0">Central Evidence Request Tracker</p>
         </div>
         <div class="col-md-6 text-end">
-            <label class="form-label">Select Engagement:</label>
-            <select class="form-select d-inline-block w-auto ms-2" id="engagementSelect">
-                <option value="">-- All Engagements --</option>
-                {% for eng in engagements %}
-                <option value="{{ eng.id }}" {% if engagement and engagement.id == eng.id %}selected{% endif %}>
-                    {{ eng.title }} ({{ eng.status }})
-                </option>
-                {% endfor %}
-            </select>
+            <div class="d-flex align-items-center gap-2 justify-content-end flex-wrap">
+                <label class="form-label mb-0">Select Engagement:</label>
+                <select class="form-select d-inline-block w-auto" id="engagementSelect">
+                    <option value="">-- All Engagements --</option>
+                    {% for eng in engagements %}
+                    <optgroup label="{{ eng.title }} ({{ eng.status }})">
+                        <option value="?engagement={{ eng.id }}" {% if engagement and engagement.id == eng.id and not selected_standard %}selected{% endif %}>
+                            {{ eng.title }} ({{ eng.status }})
+                        </option>
+                        {% for standard in eng.standards.all %}
+                        <option value="?engagement={{ eng.id }}&standard={{ standard.id }}" {% if engagement and engagement.id == eng.id and selected_standard and selected_standard.id == standard.id %}selected{% endif %}>
+                            &nbsp;&nbsp;&nbsp;&nbsp;{{ standard.name }}
+                        </option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endfor %}
+                </select>
+            </div>
         </div>
     </div>
 
@@ -176,34 +185,28 @@
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <!-- Status Pills -->
                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <a href="?engagement={{ engagement.id }}" 
+                    <a href="?engagement={{ engagement.id }}{% if selected_standard %}&standard={{ selected_standard.id }}{% endif %}" 
                        class="status-pill {% if not status_filter %}active{% endif %}" 
                        style="text-decoration: none;">
                         All ({{ counts.All }})
                     </a>
-                    <a href="?engagement={{ engagement.id }}&status=Open" 
-                       class="status-pill {% if status_filter == 'Open' %}active{% endif %}" 
+                    <a href="?engagement={{ engagement.id }}{% if selected_standard %}&standard={{ selected_standard.id }}{% endif %}&status=OPEN" 
+                       class="status-pill {% if status_filter == 'OPEN' %}active{% endif %}" 
                        style="text-decoration: none;">
                         <span class="status-dot open"></span>
-                        Open ({{ counts.Open }})
+                        Open ({{ counts.OPEN }})
                     </a>
-                    <a href="?engagement={{ engagement.id }}&status=In-Review" 
-                       class="status-pill {% if status_filter == 'In-Review' %}active{% endif %}" 
+                    <a href="?engagement={{ engagement.id }}{% if selected_standard %}&standard={{ selected_standard.id }}{% endif %}&status=READY_FOR_REVIEW" 
+                       class="status-pill {% if status_filter == 'READY_FOR_REVIEW' %}active{% endif %}" 
                        style="text-decoration: none;">
                         <span class="status-dot ready"></span>
-                        Ready for Review ({{ counts.IN_REVIEW }})
+                        Ready for Review ({{ counts.READY_FOR_REVIEW }})
                     </a>
-                    <a href="?engagement={{ engagement.id }}&status=Returned" 
-                       class="status-pill {% if status_filter == 'Returned' %}active{% endif %}" 
-                       style="text-decoration: none;">
-                        <span class="status-dot returned"></span>
-                        Changes Requested ({{ counts.RETURNED }})
-                    </a>
-                    <a href="?engagement={{ engagement.id }}&status=Accepted" 
-                       class="status-pill {% if status_filter == 'Accepted' %}active{% endif %}" 
+                    <a href="?engagement={{ engagement.id }}{% if selected_standard %}&standard={{ selected_standard.id }}{% endif %}&status=COMPLETED" 
+                       class="status-pill {% if status_filter == 'COMPLETED' %}active{% endif %}" 
                        style="text-decoration: none;">
                         <span class="status-dot completed"></span>
-                        Completed ({{ counts.ACCEPTED }})
+                        Completed ({{ counts.COMPLETED }})
                     </a>
                 </div>
                 
@@ -211,6 +214,9 @@
                 <div class="d-flex gap-2 align-items-center">
                     <form class="d-flex search-container" method="get" id="searchForm">
                         <input type="hidden" name="engagement" value="{{ engagement.id }}">
+                        {% if selected_standard %}
+                        <input type="hidden" name="standard" value="{{ selected_standard.id }}">
+                        {% endif %}
                         {% if status_filter %}
                         <input type="hidden" name="status" value="{{ status_filter }}">
                         {% endif %}
@@ -271,25 +277,24 @@
                                         <strong>{{ req.linked_control.control_id }}</strong>
                                     </td>
                                     <td>
-                                        {% if req.status == 'Open' %}
+                                        {% if req.status == 'OPEN' %}
                                         <span class="status-badge status-badge-open">
                                             <span class="status-dot open"></span>
                                             Open
                                         </span>
-                                        {% elif req.status == 'In-Review' %}
+                                        {% elif req.status == 'READY_FOR_REVIEW' %}
                                         <span class="status-badge status-badge-ready">
                                             <span class="status-dot ready"></span>
                                             Ready for Review
                                         </span>
-                                        {% elif req.status == 'Returned' %}
-                                        <span class="status-badge status-badge-returned">
-                                            <span class="status-dot returned"></span>
-                                            Changes Requested
-                                        </span>
-                                        {% elif req.status == 'Accepted' %}
+                                        {% elif req.status == 'COMPLETED' %}
                                         <span class="status-badge status-badge-completed">
                                             <span class="status-dot completed"></span>
                                             Completed
+                                        </span>
+                                        {% else %}
+                                        <span class="status-badge status-badge-open">
+                                            {{ req.status }}
                                         </span>
                                         {% endif %}
                                         {% if req.is_locked %}
@@ -340,7 +345,7 @@
                                     </td>
                                     <td>
                                         <div class="d-flex gap-1">
-                                            <a href="{% url 'sheets' %}?engagement={{ engagement.id }}#control-{{ req.linked_control.id }}" 
+                                            <a href="{% url 'request_detail' req.id %}" 
                                                class="btn btn-sm btn-outline-secondary action-btn" 
                                                title="View Request">
                                                 <i class="bi bi-eye"></i>
@@ -438,16 +443,14 @@
 <script>
 // Engagement selector
 document.getElementById('engagementSelect')?.addEventListener('change', function() {
-    const engagementId = this.value;
-    const url = new URL(window.location.href);
-    if (engagementId) {
-        url.searchParams.set('engagement', engagementId);
+    const selectedValue = this.value;
+    if (selectedValue) {
+        // Value is already a query string like "?engagement=1&standard=2"
+        window.location.href = selectedValue;
     } else {
-        url.searchParams.delete('engagement');
+        // Clear all filters
+        window.location.href = window.location.pathname;
     }
-    url.searchParams.delete('status');
-    url.searchParams.delete('q');
-    window.location.href = url.toString();
 });
 
 // Select all checkbox

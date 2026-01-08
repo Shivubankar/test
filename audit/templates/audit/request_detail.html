@@ -1,0 +1,300 @@
+{% extends 'audit/base.html' %}
+
+{% block title %}Request Detail - BlackShield AuditSource{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h4>Request Detail</h4>
+                <a href="{% url 'requests_list' %}?engagement={{ request_obj.linked_control.engagement.id }}" class="btn btn-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Back to Requests
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Request Summary Card -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Request Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th width="150">Control ID:</th>
+                                    <td><strong>{{ request_obj.linked_control.control_id }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <th>Title:</th>
+                                    <td>{{ request_obj.title|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Status:</th>
+                                    <td>
+                                        {% if request_obj.status == 'OPEN' %}
+                                        <span class="badge bg-primary">Open</span>
+                                        {% elif request_obj.status == 'READY_FOR_REVIEW' %}
+                                        <span class="badge bg-warning text-dark">Ready for Review</span>
+                                        {% elif request_obj.status == 'COMPLETED' %}
+                                        <span class="badge bg-success">Completed</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ request_obj.status }}</span>
+                                        {% endif %}
+                                        {% if request_obj.is_locked %}
+                                        <span class="badge bg-secondary"><i class="bi bi-lock"></i> Locked</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Due Date:</th>
+                                    <td>{{ request_obj.due_date|date:"Y-m-d"|default:"-" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th width="150">Owner:</th>
+                                    <td>
+                                        {% if request_obj.assignee %}
+                                        {{ request_obj.assignee.get_full_name|default:request_obj.assignee.username }}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Created:</th>
+                                    <td>{{ request_obj.created_at|date:"Y-m-d H:i" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Updated:</th>
+                                    <td>{{ request_obj.updated_at|date:"Y-m-d H:i" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Tags:</th>
+                                    <td>
+                                        {% if request_obj.tags %}
+                                        {% for tag in request_obj.tags.split|slice:":5" %}
+                                        <span class="badge bg-secondary">{{ tag }}</span>
+                                        {% endfor %}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    {% if request_obj.description %}
+                    <div class="row mt-2">
+                        <div class="col-md-12">
+                            <strong>Description:</strong>
+                            <p class="text-muted mt-1">{{ request_obj.description }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Evidence Upload Section -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Upload Evidence</h5>
+                </div>
+                <div class="card-body">
+                    {% if request_obj.is_locked and request_obj.status == 'COMPLETED' and user_role == 'Client' %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> This request has been completed and cannot be modified.
+                    </div>
+                    {% else %}
+                    <form method="post" action="{% url 'upload_evidence' request_obj.id %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="evidence_files" class="form-label">Select Evidence Files</label>
+                            <input type="file" class="form-control" id="evidence_files" name="evidence_files" multiple required>
+                            <small class="form-text text-muted">You can select multiple files. Supported formats: PDF, DOC, DOCX, XLS, XLSX, images.</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload"></i> Upload Evidence
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Evidence Documents List -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Evidence Documents ({{ evidence_docs.count }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if evidence_docs %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>File Name</th>
+                                    <th>Uploaded By</th>
+                                    <th>Uploaded At</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doc in evidence_docs %}
+                                <tr>
+                                    <td>
+                                        <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                        {{ doc.get_file_name }}
+                                    </td>
+                                    <td>
+                                        {{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username|default:"-" }}
+                                    </td>
+                                    <td>{{ doc.uploaded_at|date:"Y-m-d H:i" }}</td>
+                                    <td>
+                                        <a href="{{ doc.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Download">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                        {% if not doc.is_read_only and user_role != 'Client' %}
+                                        <form method="post" action="{% url 'delete_document' doc.id %}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this document?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-3">No evidence documents uploaded yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sign-Off Section -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Sign-Offs</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 mb-3 {% if request_obj.preparer_signed %}bg-light{% endif %}">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-2">Preparer</h6>
+                                        {% if request_obj.preparer_signed %}
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="bi bi-check-circle-fill text-success me-2" style="font-size: 1.5rem;"></i>
+                                            <div>
+                                                <strong>{{ request_obj.prepared_by.get_full_name|default:request_obj.prepared_by.username }}</strong>
+                                                {% if request_obj.preparer_signed_at %}
+                                                <br>
+                                                <small class="text-muted">{{ request_obj.preparer_signed_at|date:"M d, Y H:i" }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% if can_undo_preparer %}
+                                        <form method="post" action="{% url 'undo_signoff_request' request_obj.id %}" class="mt-2">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="role" value="preparer">
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary" onclick="return confirm('Undo Preparer sign-off?');">
+                                                <i class="bi bi-arrow-counterclockwise"></i> Undo
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                        {% else %}
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="bi bi-circle text-muted me-2" style="font-size: 1.5rem;"></i>
+                                            <span class="text-muted">Pending</span>
+                                        </div>
+                                        {% if can_sign_preparer %}
+                                        <form method="post" action="{% url 'signoff_request' request_obj.id %}" class="mt-2">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="role" value="preparer">
+                                            <button type="submit" class="btn btn-sm btn-primary">
+                                                <i class="bi bi-pen"></i> Sign
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 mb-3 {% if request_obj.reviewer_signed %}bg-light{% endif %}">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-2">Reviewer</h6>
+                                        {% if request_obj.reviewer_signed %}
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="bi bi-check-circle-fill text-success me-2" style="font-size: 1.5rem;"></i>
+                                            <div>
+                                                <strong>{{ request_obj.reviewed_by.get_full_name|default:request_obj.reviewed_by.username }}</strong>
+                                                {% if request_obj.reviewed_at %}
+                                                <br>
+                                                <small class="text-muted">{{ request_obj.reviewed_at|date:"M d, Y H:i" }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% if can_undo_reviewer %}
+                                        <form method="post" action="{% url 'undo_signoff_request' request_obj.id %}" class="mt-2">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="role" value="reviewer">
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary" onclick="return confirm('Undo Reviewer sign-off?');">
+                                                <i class="bi bi-arrow-counterclockwise"></i> Undo
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                        {% else %}
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="bi bi-circle text-muted me-2" style="font-size: 1.5rem;"></i>
+                                            <span class="text-muted">Pending</span>
+                                        </div>
+                                        {% if can_sign_reviewer %}
+                                        <form method="post" action="{% url 'signoff_request' request_obj.id %}" class="mt-2">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="role" value="reviewer">
+                                            <button type="submit" class="btn btn-sm btn-primary">
+                                                <i class="bi bi-pen"></i> Sign
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

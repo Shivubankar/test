@@ -21,7 +21,7 @@
             {% csrf_token %}
             <button type="submit" class="btn btn-success">
                 <i class="bi bi-lightning-charge"></i> Generate Sheets
-            </button>
+        </button>
         </form>
         {% endif %}
         {% endif %}
@@ -96,14 +96,14 @@
                 </thead>
                 <tbody>
                     {% for item in control_requests %}
-                    {% with control=item.control request_obj=item.request %}
+                    {% with control=item.control request_obj=item.request request_count=item.request_count requests=item.requests workpaper_count=item.workpaper_count workpaper_docs=item.workpaper_docs %}
                     {% with questionnaire_responses=control.get_questionnaire_responses %}
                     <tr>
                     <td>
                         <strong>{{ control.control_id }}</strong>
                         {% if control.control_name and control.control_name != control.control_id %}
                         <br><small class="text-muted">{{ control.control_name }}</small>
-                        {% endif %}
+                                                {% endif %}
                         {% if questionnaire_responses %}
                         <span class="badge bg-info ms-1" data-bs-toggle="tooltip" data-bs-html="true" 
                               title="<strong>Questionnaire Response (Read-only):</strong><br>
@@ -112,41 +112,49 @@
                               {% endfor %}<br><small><em>Reference only - not audit execution</em></small>">
                             <i class="bi bi-clipboard-check"></i> Q
                         </span>
-                        {% endif %}
+                                            {% endif %}
                     </td>
                     <td>{{ control.control_description|truncatewords:20 }}</td>
                     <td>
                         {% if can_upload_workpaper %}
                         <input type="text" class="form-control form-control-sm" name="test_applied_{{ control.id }}" form="updateControl{{ control.id }}" value="{% if control.test_applied %}{{ control.test_applied }}{% endif %}" placeholder="Describe test applied...">
-                        {% else %}
+                                    {% else %}
                         <span class="text-muted">{% if control.test_applied %}{{ control.test_applied }}{% else %}-{% endif %}</span>
-                        {% endif %}
+                                    {% endif %}
                     </td>
                     <td style="min-width: 200px;">
                         {% if can_upload_workpaper %}
                         <textarea class="form-control form-control-sm" name="test_performed_{{ control.id }}" form="updateControl{{ control.id }}" rows="2" placeholder="Describe testing performed...">{% if control.test_performed %}{{ control.test_performed }}{% endif %}</textarea>
                         {% else %}
                         <small class="text-muted">{% if control.test_performed %}{{ control.test_performed|truncatewords:15 }}{% else %}-{% endif %}</small>
-                        {% endif %}
+                                    {% endif %}
                     </td>
                     <td style="min-width: 200px;">
                         {% if can_upload_workpaper %}
                         <textarea class="form-control form-control-sm" name="test_results_{{ control.id }}" form="updateControl{{ control.id }}" rows="2" placeholder="Audit conclusion (e.g., 'No exceptions noted')...">{{ control.test_results }}</textarea>
-                        {% else %}
+                            {% else %}
                         <small class="text-muted">{{ control.test_results|truncatewords:15|default:"-" }}</small>
-                        {% endif %}
-                    </td>
+                            {% endif %}
+                        </td>
                     <td>
-                        {% if request_obj %}
+                        {% if request_count > 0 %}
                             <div class="d-flex align-items-center gap-2">
                                 <span class="badge bg-info">
-                                    <i class="bi bi-file-earmark-text"></i> 1 Request
+                                    <i class="bi bi-file-earmark-text"></i> 
+                                    {{ request_count }} Request{{ request_count|pluralize }}
                                 </span>
-                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#requestModal{{ request_obj.id }}" title="View Request Details">
+                            {% if request_obj %}
+                                <a href="{% url 'request_detail' request_obj.id %}" class="btn btn-sm btn-outline-primary" title="View Request Details">
                                     <i class="bi bi-eye"></i> View
-                                </button>
-                            </div>
-                        {% else %}
+                                </a>
+                                {% endif %}
+                                {% if can_upload_evidence %}
+                                <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#evidenceUploadModal{{ control.id }}" title="Upload Evidence">
+                                    <i class="bi bi-upload"></i> Upload Evidence
+                                                    </button>
+                                                {% endif %}
+                                            </div>
+                                    {% else %}
                             {% if user_role == 'Admin' or user_role == 'Control Assessor' or user_role == 'Control Reviewer' %}
                             <form method="post" action="{% url 'create_request' control.id %}" style="display: inline;">
                                 {% csrf_token %}
@@ -154,30 +162,32 @@
                                     <i class="bi bi-plus-circle"></i> Create Request
                                 </button>
                             </form>
+                            {% elif can_upload_evidence %}
+                            <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#evidenceUploadModal{{ control.id }}" title="Upload Evidence">
+                                <i class="bi bi-upload"></i> Upload Evidence
+                                        </button>
                             {% else %}
-                            <span class="text-muted">-</span>
+                                <span class="text-muted">-</span>
                             {% endif %}
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% with workpaper_docs=control.documents.all %}
+                            {% endif %}
+                        </td>
+                        <td>
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge bg-secondary">
-                                <i class="bi bi-file-earmark-text"></i> {{ workpaper_docs|length }} Workpapers
-                            </span>
-                            {% if can_upload_workpaper %}
-                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#workpaperModal{{ control.id }}" title="Manage Workpapers">
-                                <i class="bi bi-plus-lg"></i> Add
-                            </button>
-                            {% endif %}
-                            {% if workpaper_docs|length > 0 %}
+                                <i class="bi bi-file-earmark-text"></i> {{ workpaper_count }} Workpaper{{ workpaper_count|pluralize }}
+                                    </span>
+                                    {% if can_upload_workpaper %}
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#workpaperModal{{ control.id }}" title="Upload Workpapers">
+                                <i class="bi bi-plus-lg"></i> Add Document
+                                        </button>
+                                    {% endif %}
+                            {% if workpaper_count > 0 %}
                             <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#documentsModal{{ control.id }}" title="View Documents">
                                 <i class="bi bi-eye"></i> View
                             </button>
                             {% endif %}
                         </div>
-                        {% endwith %}
-                    </td>
+                        </td>
                     <td style="min-width: 240px;">
                         <style>
                             .sign-pill { border-radius: 999px; padding: 4px 10px; }
@@ -213,26 +223,10 @@
                                     </button>
                                 </form>
                             {% endif %}
-                            
-                            {% if control.admin_signed_at %}
-                                <button class="btn btn-sm btn-success sign-pill signed">
-                                    <i class="bi bi-check2"></i> Admin
-                                </button>
-                            {% else %}
-                                <form method="post" action="{% url 'signoff_control' control.id %}">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="role" value="admin">
-                                    <button type="submit" class="btn btn-sm btn-outline-secondary sign-pill"
-                                            {% if not can_sign_admin %}disabled{% endif %}>
-                                        Admin
-                                    </button>
-                                </form>
-                            {% endif %}
                         </div>
                         <div class="mt-1 small text-muted">
                             {% if control.preparer_signed_at %}P: {{ control.preparer_signed_by.get_full_name|default:control.preparer_signed_by.username }} on {{ control.preparer_signed_at|date:"Y-m-d" }}{% endif %}
                             {% if control.reviewer_signed_at %}{% if control.preparer_signed_at %} | {% endif %}R: {{ control.reviewer_signed_by.get_full_name|default:control.reviewer_signed_by.username }} on {{ control.reviewer_signed_at|date:"Y-m-d" }}{% endif %}
-                            {% if control.admin_signed_at %}{% if control.preparer_signed_at or control.reviewer_signed_at %} | {% endif %}A: {{ control.admin_signed_by.get_full_name|default:control.admin_signed_by.username }} on {{ control.admin_signed_at|date:"Y-m-d" }}{% endif %}
                         </div>
                     </td>
                     </tr>
@@ -284,7 +278,7 @@
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                 </div>
                                 <form method="post" action="{% url 'upload_workpaper_control' control.id %}" enctype="multipart/form-data">
-                                    {% csrf_token %}
+                                                {% csrf_token %}
                                     <div class="modal-body">
                                         <div class="mb-3">
                                             <label class="form-label">Workpaper Files (Select multiple files)</label>
@@ -295,6 +289,46 @@
                                     <div class="modal-footer">
                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                                         <button type="submit" class="btn btn-success">Upload</button>
+                                    </div>
+                                            </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Evidence Upload Modal from Sheets -->
+                    {% if can_upload_evidence %}
+                    <div class="modal fade" id="evidenceUploadModal{{ control.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Upload Evidence – {{ control.control_id }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="post" action="{% url 'upload_evidence_from_sheets' control.id %}" enctype="multipart/form-data">
+                                    {% csrf_token %}
+                                    <div class="modal-body">
+                                        {% if request_obj %}
+                                        <input type="hidden" name="request_id" value="{{ request_obj.id }}">
+                                        <div class="alert alert-info mb-3">
+                                            Evidence will be attached to: Evidence Request for {{ control.control_id }} ({{ request_obj.status }})
+                                        </div>
+                                        {% else %}
+                                        <input type="hidden" name="request_id" value="">
+                                        <div class="alert alert-info mb-3">
+                                            Evidence will be attached to: Evidence Request for {{ control.control_id }} (Open)
+                                        </div>
+                                        {% endif %}
+                                        <div class="mb-3">
+                                            <label class="form-label">Upload Evidence Files <span class="text-danger">*</span></label>
+                                            <input type="file" class="form-control" name="evidence_files" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.csv,.txt" multiple required>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-upload"></i> Upload Evidence
+                                        </button>
                                     </div>
                                 </form>
                             </div>
@@ -313,7 +347,16 @@
                                 </div>
                                 <div class="modal-body">
                                     <div class="mb-3">
-                                        <strong>Status:</strong> <span class="badge bg-{% if request_obj.status == 'Accepted' %}success{% elif request_obj.status == 'Returned' %}danger{% else %}primary{% endif %}">{{ request_obj.status }}</span>
+                                        <strong>Status:</strong> 
+                                        {% if request_obj.status == 'OPEN' %}
+                                        <span class="badge bg-primary">Open</span>
+                                        {% elif request_obj.status == 'READY_FOR_REVIEW' %}
+                                        <span class="badge bg-warning text-dark">Ready for Review</span>
+                                        {% elif request_obj.status == 'COMPLETED' %}
+                                        <span class="badge bg-success">Completed</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ request_obj.status }}</span>
+                                        {% endif %}
                                     </div>
                                     {% if request_obj.description %}
                                     <div class="mb-3">
@@ -406,51 +449,6 @@
                         </div>
                     </div>
 
-                    <!-- Review Modal - Accept -->
-                    <div class="modal fade" id="reviewModal{{ request_obj.id }}" tabindex="-1">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Accept Request</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <form method="post" action="{% url 'review_request' request_obj.id %}">
-                                    {% csrf_token %}
-                                    <div class="modal-body">
-                                        <p>Are you sure you want to accept this request? It will be locked after acceptance.</p>
-                                        <input type="hidden" name="status" value="Accepted">
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-success">Accept</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Review Modal - Return -->
-                    <div class="modal fade" id="returnModal{{ request_obj.id }}" tabindex="-1">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Return Request</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <form method="post" action="{% url 'review_request' request_obj.id %}">
-                                    {% csrf_token %}
-                                    <div class="modal-body">
-                                        <p>Return this request for revision?</p>
-                                        <input type="hidden" name="status" value="Returned">
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-danger">Return</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
                     {% endif %}
                     
                     {% if can_upload_workpaper %}
@@ -463,11 +461,9 @@
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                 </div>
                                 <div class="modal-body">
-                                    {% with workpaper_docs=control.documents.all %}
                                     {% if workpaper_docs %}
                                     <ul class="list-group">
                                         {% for doc in workpaper_docs %}
-                                        {% if doc.doc_type == 'workpaper' or not doc.doc_type %}
                                         <li class="list-group-item d-flex justify-content-between align-items-center">
                                             <a href="{{ doc.file.url }}" target="_blank">
                                                 <i class="bi bi-file-earmark-text text-primary"></i> {{ doc.get_file_name }}
@@ -482,13 +478,11 @@
                                                 </form>
                                             </div>
                                         </li>
-                                        {% endif %}
                                         {% endfor %}
                                     </ul>
                                     {% else %}
                                     <div class="alert alert-info">No workpapers uploaded yet.</div>
                                     {% endif %}
-                                    {% endwith %}
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -497,8 +491,8 @@
                         </div>
                     </div>
                     {% endif %}
-                    {% endwith %}
-                    {% endwith %}
+                    {% endwith %}  {# Close questionnaire_responses with #}
+                    {% endwith %}  {# Close control/request with #}
                     {% empty %}
                     <tr>
                         <td colspan="9" class="text-center text-muted">No controls found. {% if user_role == 'Admin' %}Create a control to get started.{% endif %}</td>
@@ -635,7 +629,7 @@
                 }, 1000); // Debounce: wait 1 second after last change
             });
         });
-        
+
         // Make sure form submissions work
         document.querySelectorAll('.modal form').forEach(function(form) {
             // Remove any event listeners that might prevent submission

@@ -37,11 +37,11 @@ class StandardControlAdmin(admin.ModelAdmin):
 
 @admin.register(Request)
 class RequestAdmin(admin.ModelAdmin):
-    list_display = ['linked_control', 'assignee', 'status', 'is_locked', 'reviewed_by', 'reviewed_at']
-    list_filter = ['status', 'is_locked', 'created_at']
+    list_display = ['linked_control', 'assignee', 'status', 'is_locked', 'preparer_signed', 'reviewer_signed', 'reviewed_by', 'reviewed_at']
+    list_filter = ['status', 'is_locked', 'preparer_signed', 'reviewer_signed', 'created_at']
     search_fields = ['linked_control__control_id', 'assignee__username', 'auditor_test_notes']
     raw_id_fields = ['linked_control', 'assignee', 'prepared_by', 'reviewed_by']
-    readonly_fields = ['is_locked', 'reviewed_at', 'created_at', 'updated_at']
+    readonly_fields = ['is_locked', 'created_at', 'updated_at']
     actions = ['unlock_request']
     
     fieldsets = (
@@ -61,7 +61,11 @@ class RequestAdmin(admin.ModelAdmin):
     )
     
     def unlock_request(self, request, queryset):
-        queryset.update(is_locked=False, status='In-Review')
+        # Unlock and recalculate status for each request
+        for req in queryset:
+            req.is_locked = False
+            req.recalculate_status()
+            req.save()
         self.message_user(request, f"{queryset.count()} request(s) unlocked.")
     unlock_request.short_description = "Unlock selected requests"
 

@@ -110,9 +110,15 @@
                             <tr>
                                 <td><strong>{{ req.linked_control.control_id }}</strong></td>
                                 <td>
-                                    <span class="badge bg-{% if req.status == 'Accepted' %}success{% elif req.status == 'Returned' %}danger{% elif req.status == 'In-Review' %}warning{% else %}secondary{% endif %}">
-                                        {{ req.status }}
-                                    </span>
+                                    {% if req.status == 'OPEN' %}
+                                    <span class="badge bg-primary">Open</span>
+                                    {% elif req.status == 'READY_FOR_REVIEW' %}
+                                    <span class="badge bg-warning text-dark">Ready for Review</span>
+                                    {% elif req.status == 'COMPLETED' %}
+                                    <span class="badge bg-success">Completed</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ req.status }}</span>
+                                    {% endif %}
                         </td>
                         <td>
                                     {% if req.auditor_test_notes %}

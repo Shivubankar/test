@@ -10,6 +10,7 @@ urlpatterns = [
     path('questionnaires/create/<int:engagement_id>/', views.create_questionnaire, name='create_questionnaire'),
     path('questionnaires/<int:questionnaire_id>/', views.questionnaire_detail, name='questionnaire_detail'),
     path('requests/', views.requests_list, name='requests_list'),
+    path('requests/<int:pk>/', views.request_detail, name='request_detail'),
     path('create-request/<int:control_id>/', views.create_request, name='create_request'),
     path('documents/', views.documents, name='documents'),
     path('documents/upload/', views.documents_upload, name='documents_upload'),
@@ -19,8 +20,10 @@ urlpatterns = [
     
     # Request actions
     path('upload-evidence/<int:request_id>/', views.upload_evidence, name='upload_evidence'),
+    path('upload-evidence-from-sheets/<int:control_id>/', views.upload_evidence_from_sheets, name='upload_evidence_from_sheets'),
     path('upload-workpaper/<int:request_id>/', views.upload_workpaper, name='upload_workpaper'),
-    path('review-request/<int:request_id>/', views.review_request, name='review_request'),
+    path('signoff-request/<int:request_id>/', views.signoff_request, name='signoff_request'),
+    path('undo-signoff-request/<int:request_id>/', views.undo_signoff_request, name='undo_signoff_request'),
     path('unlock-request/<int:request_id>/', views.unlock_request, name='unlock_request'),
     path('delete-doc/<int:doc_id>/', views.delete_document, name='delete_document'),
     

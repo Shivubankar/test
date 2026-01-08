@@ -94,15 +94,36 @@ def sheets(request):
         'linked_control', 'assignee', 'prepared_by', 'reviewed_by'
     )
     
-    # Create a dict for quick lookup
-    requests_dict = {req.linked_control.id: req for req in requests}
+    # Create a dict mapping control_id to list of requests (support multiple requests per control)
+    from collections import defaultdict
+    requests_dict = defaultdict(list)
+    for req in requests:
+        requests_dict[req.linked_control.id].append(req)
     
-    # Create control-request pairs for template
+    # Create control-requests pairs for template
     control_requests = []
     for control in controls:
+        control_requests_list = requests_dict.get(control.id, [])
+        # Sort requests: Open first, then by creation date (newest first)
+        # This ensures OPEN requests are prioritized for auto-selection
+        sorted_requests = sorted(control_requests_list, key=lambda r: (r.status != 'OPEN', -r.id))
+        # Get latest OPEN request for auto-selection, or first request
+        latest_open_request = next((req for req in sorted_requests if req.status == 'OPEN'), None)
+        primary_request = latest_open_request or (sorted_requests[0] if sorted_requests else None)
+        
+        # Filter workpapers only (not evidence) for Documents column
+        workpaper_docs = RequestDocument.objects.filter(
+            linked_control=control,
+            doc_type='workpaper'
+        )
+        
         control_requests.append({
             'control': control,
-            'request': requests_dict.get(control.id)
+            'requests': sorted_requests,  # All requests sorted (Open first, then by creation date)
+            'request': primary_request,  # Primary request (for backward compatibility)
+            'request_count': len(control_requests_list),
+            'workpaper_count': workpaper_docs.count(),  # Only workpapers, not evidence
+            'workpaper_docs': workpaper_docs,  # Workpaper queryset for template
         })
     
     engagements = Engagement.objects.all()
@@ -122,7 +143,6 @@ def sheets(request):
         # Sign-off permissions are role-only; enabled per role
         'can_sign_preparer': is_admin_user or is_control_assessor,
         'can_sign_reviewer': is_admin_user or is_control_reviewer,
-        'can_sign_admin': is_admin_user,
     }
     
     return render(request, 'audit/sheets.html', context)
@@ -149,17 +169,17 @@ def dashboard(request):
         # Get all requests for these controls
         all_requests = Request.objects.filter(linked_control__in=all_controls)
         
-        # Calculate Row Sign-offs % (Accepted requests)
-        accepted_requests = all_requests.filter(status='Accepted').count()
-        row_signoffs_percent = (accepted_requests / total_controls * 100) if total_controls > 0 else 0
+        # Calculate Row Sign-offs % (Completed requests)
+        completed_requests = all_requests.filter(status='COMPLETED').count()
+        row_signoffs_percent = (completed_requests / total_controls * 100) if total_controls > 0 else 0
         
         # Calculate Document Sign-offs % (Requests with documents)
         requests_with_docs = all_requests.filter(documents__isnull=False).distinct().count()
         doc_signoffs_percent = (requests_with_docs / total_controls * 100) if total_controls > 0 else 0
         
         # Calculate Requests Completion % (Non-Open requests)
-        completed_requests = all_requests.exclude(status='Open').count()
-        requests_completion_percent = (completed_requests / total_controls * 100) if total_controls > 0 else 0
+        completed_requests_count = all_requests.exclude(status='OPEN').count()
+        requests_completion_percent = (completed_requests_count / total_controls * 100) if total_controls > 0 else 0
         
         # Calculate Tasks Completion % (Requests with test notes)
         requests_with_notes = all_requests.exclude(auditor_test_notes__isnull=True).exclude(auditor_test_notes='').count()
@@ -529,32 +549,76 @@ def signoff_control(request, control_id):
 
 
 @login_required
+def request_detail(request, pk):
+    """
+    Request detail page showing request information and evidence upload functionality.
+    """
+    req = get_object_or_404(Request, pk=pk)
+    user_role = get_user_role(request.user)
+    
+    # Get all evidence documents for this request
+    evidence_docs = RequestDocument.objects.filter(
+        request=req,
+        doc_type='evidence'
+    ).select_related('uploaded_by').order_by('-uploaded_at')
+    
+    # Sign-off permissions
+    is_admin_user = request.user.is_superuser
+    is_control_assessor = request.user.groups.filter(name=ROLE_CONTROL_ASSESSOR).exists()
+    is_control_reviewer = request.user.groups.filter(name=ROLE_CONTROL_REVIEWER).exists()
+    
+    # Check if user can undo their own sign-offs
+    can_undo_preparer = (req.prepared_by == request.user) or is_admin_user
+    can_undo_reviewer = (req.reviewed_by == request.user) or is_admin_user
+    
+    context = {
+        'request_obj': req,
+        'evidence_docs': evidence_docs,
+        'user_role': user_role,
+        'can_sign_preparer': (is_admin_user or is_control_assessor) and not req.preparer_signed,
+        'can_sign_reviewer': (is_admin_user or is_control_reviewer) and not req.reviewer_signed,
+        'can_undo_preparer': can_undo_preparer and req.preparer_signed,
+        'can_undo_reviewer': can_undo_reviewer and req.reviewer_signed,
+    }
+    
+    return render(request, 'audit/request_detail.html', context)
+
+
+@login_required
 def requests_list(request):
     """
     Central evidence request tracker.
     Shows requests with Key, Status, Title, Description, Due date, Owner, Tags.
-    Status lifecycle: Open, Ready for Review (In-Review), Changes Requested (Returned), Completed (Accepted).
+    Status lifecycle: Open, Ready for Review, Completed.
     Includes status counts and search by title/description/tags.
+    Supports filtering by engagement and standard.
     """
     engagement_id = request.GET.get('engagement')
+    standard_id = request.GET.get('standard')
     status_filter = request.GET.get('status')
     q = request.GET.get('q', '').strip()
     
+    # Get base queryset of controls
     if engagement_id:
         engagement = get_object_or_404(Engagement, id=engagement_id)
         controls = EngagementControl.objects.filter(engagement=engagement)
-        all_requests = Request.objects.filter(linked_control__in=controls).select_related(
-            'linked_control', 'assignee', 'prepared_by', 'reviewed_by'
-        )
+        
+        # Filter by standard if provided
+        if standard_id:
+            controls = controls.filter(standard_control__standard_id=standard_id)
     else:
         engagement = Engagement.objects.first()
         if engagement:
             controls = EngagementControl.objects.filter(engagement=engagement)
-            all_requests = Request.objects.filter(linked_control__in=controls).select_related(
-                'linked_control', 'assignee', 'prepared_by', 'reviewed_by'
-            )
+            if standard_id:
+                controls = controls.filter(standard_control__standard_id=standard_id)
         else:
-            all_requests = Request.objects.none()
+            controls = EngagementControl.objects.none()
+    
+    # Get all requests for these controls
+    all_requests = Request.objects.filter(linked_control__in=controls).select_related(
+        'linked_control', 'linked_control__standard_control__standard', 'assignee', 'prepared_by', 'reviewed_by'
+    )
     
     # Filter by status if provided
     if status_filter:
@@ -573,14 +637,13 @@ def requests_list(request):
             Q(assignee__last_name__icontains=q)
         )
     
-    # Counts for chips - Use Django-safe keys (uppercase with underscores)
-    # Database still uses 'In-Review', 'Returned', 'Accepted' as status values
+    # Counts for chips - computed from database queries
+    base_requests = Request.objects.filter(linked_control__in=controls)
     counts = {
-        'All': Request.objects.filter(linked_control__in=controls).count() if engagement else 0,
-        'Open': Request.objects.filter(linked_control__in=controls, status='Open').count() if engagement else 0,
-        'IN_REVIEW': Request.objects.filter(linked_control__in=controls, status='In-Review').count() if engagement else 0,
-        'RETURNED': Request.objects.filter(linked_control__in=controls, status='Returned').count() if engagement else 0,
-        'ACCEPTED': Request.objects.filter(linked_control__in=controls, status='Accepted').count() if engagement else 0,
+        'All': base_requests.count(),
+        'OPEN': base_requests.filter(status='OPEN').count(),
+        'READY_FOR_REVIEW': base_requests.filter(status='READY_FOR_REVIEW').count(),
+        'COMPLETED': base_requests.filter(status='COMPLETED').count(),
     }
     
     # Prefetch document counts for each request
@@ -590,12 +653,23 @@ def requests_list(request):
         workpaper_count=Count('documents', filter=Q(documents__doc_type='workpaper'))
     )
     
-    engagements = Engagement.objects.all()
+    # Get engagements with their standards for dropdown
+    engagements = Engagement.objects.prefetch_related('standards').all()
     user_role = get_user_role(request.user)
+    
+    # Get selected standard if provided
+    selected_standard = None
+    if standard_id:
+        try:
+            from .models import Standard
+            selected_standard = Standard.objects.get(id=standard_id)
+        except Standard.DoesNotExist:
+            pass
     
     context = {
         'engagement': engagement,
         'engagements': engagements,
+        'selected_standard': selected_standard,
         'user_role': user_role,
         'requests': all_requests.order_by('-updated_at'),
         'status_filter': status_filter,
@@ -639,7 +713,7 @@ def create_request(request, control_id):
             new_request = Request.objects.create(
                 linked_control=control,
                 assignee=control.engagement.lead_auditor,
-                status='Open',
+                status='OPEN',
                 title=title,
                 description=description,
                 due_date=due_date if due_date else None,
@@ -878,15 +952,12 @@ def upload_evidence(request, request_id):
         # Check permissions
         if not user_in_roles(request.user, [ROLE_ADMIN, ROLE_CONTROL_ASSESSOR, ROLE_CONTROL_REVIEWER, ROLE_CLIENT]):
             messages.error(request, 'Permission denied.')
-            return redirect('requests_list')
+            return redirect('request_detail', pk=req.id)
         
         # Check if request is locked (Accepted requests cannot be modified by Clients)
-        if req.is_locked and req.status == 'Accepted' and user_role == ROLE_CLIENT:
+        if req.is_locked and req.status == 'COMPLETED' and user_role == ROLE_CLIENT:
             messages.error(request, 'This request has been accepted and cannot be modified.')
-            engagement_id = req.linked_control.engagement.id if req.linked_control.engagement else None
-            if engagement_id:
-                return redirect(f"{reverse('requests_list')}?engagement={engagement_id}")
-            return redirect('requests_list')
+            return redirect('request_detail', pk=req.id)
         
         # Handle multiple file uploads
         files = request.FILES.getlist('evidence_files') or [request.FILES.get('evidence_file')]
@@ -908,26 +979,106 @@ def upload_evidence(request, request_id):
                 )
                 uploaded_count += 1
             
-            # Update request status if Client uploaded (Open -> In-Review)
-            if req.status == 'Open' and user_role == ROLE_CLIENT:
-                req.status = 'In-Review'
-                req.save(update_fields=['status'])
+            # Recalculate request status automatically based on evidence and sign-offs
+            req.recalculate_status()
+            req.save()
             
             if uploaded_count == 1:
                 messages.success(request, 'Evidence document uploaded successfully.')
             else:
                 messages.success(request, f'{uploaded_count} evidence documents uploaded successfully.')
-            
-            # No status logic in Sheets per AuditSource behavior
         
-        # Redirect back to Requests page
-        engagement_id = req.linked_control.engagement.id if req.linked_control.engagement else None
-        if engagement_id:
-            return redirect(f"{reverse('requests_list')}?engagement={engagement_id}")
-        return redirect('requests_list')
+        # Redirect back to Request Detail page
+        return redirect('request_detail', pk=req.id)
     except Exception as e:
         messages.error(request, f'Error uploading evidence: {str(e)}')
+        if 'req' in locals():
+            return redirect('request_detail', pk=req.id)
         return redirect('requests_list')
+
+
+@login_required
+@require_http_methods(["POST"])
+def upload_evidence_from_sheets(request, control_id):
+    """
+    Upload evidence documents directly from Sheets (Workplan) module.
+    Simple, minimal upload flow - no dropdowns, no reuse logic.
+    Auto-selects latest OPEN request or creates new request if none exists.
+    Redirects back to Sheets (not Requests page).
+    """
+    try:
+        control = get_object_or_404(EngagementControl, id=control_id)
+        user_role = get_user_role(request.user)
+        
+        # Check permissions
+        if not user_in_roles(request.user, [ROLE_ADMIN, ROLE_CONTROL_ASSESSOR, ROLE_CONTROL_REVIEWER, ROLE_CLIENT]):
+            messages.error(request, 'Permission denied.')
+            return redirect(f"{reverse('sheets')}?engagement={control.engagement.id}")
+        
+        # Get or create request
+        request_id = request.POST.get('request_id')
+        
+        if request_id:
+            req = get_object_or_404(Request, id=request_id, linked_control=control)
+        else:
+            # Auto-create request if none exists
+            # Find latest OPEN request for this control
+            existing_requests = Request.objects.filter(linked_control=control).order_by('-created_at')
+            latest_open_request = existing_requests.filter(status='OPEN').first()
+            
+            if latest_open_request:
+                req = latest_open_request
+            else:
+                # Create new request
+                req = Request.objects.create(
+                    linked_control=control,
+                    title=f"Evidence Request - {control.control_id}",
+                    status='OPEN',
+                    assignee=control.engagement.lead_auditor if control.engagement.lead_auditor else request.user
+                )
+        
+        # Check if request is locked (Accepted requests cannot be modified by Clients)
+        if req.is_locked and req.status == 'COMPLETED' and user_role == ROLE_CLIENT:
+            messages.error(request, 'This request has been accepted and cannot be modified.')
+            return redirect(f"{reverse('sheets')}?engagement={control.engagement.id}")
+        
+        # Handle file uploads
+        files = request.FILES.getlist('evidence_files')
+        files = [f for f in files if f]  # Remove None values
+        
+        if not files:
+            messages.error(request, 'Please select at least one file to upload.')
+        else:
+            uploaded_count = 0
+            for file_obj in files:
+                # Create RequestDocument record with default 'evidence' folder
+                RequestDocument.objects.create(
+                    request=req,
+                    engagement=control.engagement,
+                    linked_control=control,
+                    file=file_obj,
+                    doc_type='evidence',
+                    folder='evidence',  # Default folder
+                    uploaded_by=request.user
+                )
+                uploaded_count += 1
+            
+            # Recalculate request status automatically based on evidence and sign-offs
+            req.recalculate_status()
+            req.save()
+            
+            if uploaded_count == 1:
+                messages.success(request, 'Evidence file uploaded successfully.')
+            else:
+                messages.success(request, f'{uploaded_count} evidence files uploaded successfully.')
+        
+        # Redirect back to Sheets (NOT Requests page)
+        return redirect(f"{reverse('sheets')}?engagement={control.engagement.id}")
+    except Exception as e:
+        messages.error(request, f'Error uploading evidence: {str(e)}')
+        if 'control' in locals():
+            return redirect(f"{reverse('sheets')}?engagement={control.engagement.id}")
+        return redirect('sheets')
 
 
 @login_required
@@ -968,9 +1119,7 @@ def upload_workpaper(request, request_id):
                 uploaded_count += 1
             
             # Update request status if needed
-            if req.status == 'Open':
-                req.status = 'In-Review'
-                req.save(update_fields=['status'])
+            # Status will be recalculated automatically in save()
             
             if uploaded_count == 1:
                 messages.success(request, 'Workpaper document uploaded successfully.')
@@ -982,12 +1131,13 @@ def upload_workpaper(request, request_id):
             test_notes = request.POST.get('auditor_test_notes', '').strip()
             if test_notes:
                 req.auditor_test_notes = test_notes
-                if not req.prepared_by:
-                    req.prepared_by = request.user
-                req.save(update_fields=['auditor_test_notes', 'prepared_by'])
+        # Note: Setting prepared_by here doesn't automatically sign off
+        # Sign-off must be done explicitly via signoff_request view
+        # Status will be recalculated automatically in save()
+        req.save()
         
         # Redirect back to Sheets (workpapers are uploaded from Sheets)
-        engagement_id = req.linked_control.engagement.id if req.linked_control.engagement else None
+        engagement_id = req.linked_control.engagement.id if req.linked_control and req.linked_control.engagement else None
         if engagement_id:
             return redirect(f"{reverse('sheets')}?engagement={engagement_id}")
         return redirect('sheets')
@@ -998,71 +1148,98 @@ def upload_workpaper(request, request_id):
 
 @login_required
 @require_http_methods(["POST"])
-@role_required([ROLE_ADMIN, ROLE_CONTROL_ASSESSOR, ROLE_CONTROL_REVIEWER])
-def review_request(request, request_id):
+def signoff_request(request, request_id):
     """
-    Handle Accept/Return actions for control requests.
-    - Accept: Sets status to Accepted, locks request, records reviewer
-    - Return: Sets status to Returned, unlocks request (allows Client to re-upload)
-    Status transitions: Open → In-Review → Accepted/Returned
+    Record a sign-off on a request by role (preparer or reviewer).
+    Sets boolean flags and timestamps. Status is automatically recalculated.
+    role param: preparer | reviewer
     """
-    try:
-        req = get_object_or_404(Request, id=request_id)
-        user_role = get_user_role(request.user)
+    from django.utils import timezone
+    req = get_object_or_404(Request, id=request_id)
+    role = request.POST.get('role')
+    now = timezone.now()
     
-        # Check if request is locked (only Admin can override)
-        if req.is_locked and req.status == 'Accepted' and user_role != ROLE_ADMIN:
-            messages.error(request, 'This request has been accepted and is locked.')
-            engagement_id = req.linked_control.engagement.id if req.linked_control.engagement else None
-            if engagement_id:
-                return redirect(f"{reverse('requests_list')}?engagement={engagement_id}")
-            return redirect('requests_list')
-        
-        # Get status from POST data
-        new_status = request.POST.get('status')
-        if not new_status or new_status not in ['Accepted', 'Returned']:
-            messages.error(request, 'Invalid status value.')
-            engagement_id = req.linked_control.engagement.id if req.linked_control.engagement else None
-            if engagement_id:
-                return redirect(f"{reverse('requests_list')}?engagement={engagement_id}")
-            return redirect('requests_list')
-        
-        # Validate acceptance requirements
-        if new_status == 'Accepted':
-            has_file = req.documents.filter(doc_type__in=['evidence', 'workpaper']).exists()
-            has_notes = bool(req.auditor_test_notes and req.auditor_test_notes.strip())
-            if not (has_file or has_notes):
-                messages.error(
-                    request, 
-                    'Either a supporting file (evidence or workpaper) or non-empty Test Performed notes are required before acceptance.'
-                )
-                engagement_id = req.linked_control.engagement.id if req.linked_control.engagement else None
-                if engagement_id:
-                    return redirect(f"{reverse('requests_list')}?engagement={engagement_id}")
-                return redirect('requests_list')
-        
-        # Update request status and lock state
-        req.status = new_status
-        if new_status == 'Accepted':
-            req.reviewed_by = request.user
-            req.reviewed_at = timezone.now()
-            req.is_locked = True  # Lock when accepted - no further uploads
-            messages.success(request, 'Request accepted and locked. Evidence is now read-only.')
-        elif new_status == 'Returned':
-            req.is_locked = False  # Unlock when returned - allows Client to re-upload
-            req.status = 'Open'  # Reset to Open so Client can upload again
-            messages.success(request, 'Request returned for revision. Client can re-upload evidence.')
-        
-        req.save()
-        
-        # Redirect back to Requests page
-        engagement_id = req.linked_control.engagement.id if req.linked_control.engagement else None
-        if engagement_id:
-            return redirect(f"{reverse('requests_list')}?engagement={engagement_id}")
-        return redirect('requests_list')
-    except Exception as e:
-        messages.error(request, f'Error reviewing request: {str(e)}')
-        return redirect('requests_list')
+    if role == 'preparer':
+        # Permission check: Admin or Control Assessor can sign as Preparer
+        if not user_in_roles(request.user, [ROLE_ADMIN, ROLE_CONTROL_ASSESSOR]):
+            messages.error(request, 'You do not have permission to sign as Preparer.')
+            return redirect('request_detail', pk=req.id)
+        # Set preparer sign-off
+        req.preparer_signed = True
+        req.prepared_by = request.user
+        req.preparer_signed_at = now
+        messages.success(request, 'Preparer sign-off recorded.')
+    elif role == 'reviewer':
+        # Permission check: Admin or Control Reviewer can sign as Reviewer
+        if not user_in_roles(request.user, [ROLE_ADMIN, ROLE_CONTROL_REVIEWER]):
+            messages.error(request, 'You do not have permission to sign as Reviewer.')
+            return redirect('request_detail', pk=req.id)
+        # Set reviewer sign-off
+        req.reviewer_signed = True
+        req.reviewed_by = request.user
+        req.reviewed_at = now
+        messages.success(request, 'Reviewer sign-off recorded.')
+    else:
+        messages.error(request, 'Invalid sign-off role.')
+        return redirect('request_detail', pk=req.id)
+    
+    # Save sign-off fields first
+    if role == 'preparer':
+        req.save(update_fields=['preparer_signed', 'prepared_by', 'preparer_signed_at'])
+    else:
+        req.save(update_fields=['reviewer_signed', 'reviewed_by', 'reviewed_at'])
+    
+    # Recalculate status automatically based on sign-off flags
+    req.recalculate_status()
+    
+    return redirect('request_detail', pk=req.id)
+
+
+@login_required
+@require_http_methods(["POST"])
+def undo_signoff_request(request, request_id):
+    """
+    Undo a sign-off on a request by role (preparer or reviewer).
+    Clears boolean flags and timestamps. Status is automatically recalculated.
+    role param: preparer | reviewer
+    """
+    req = get_object_or_404(Request, id=request_id)
+    role = request.POST.get('role')
+    
+    if role == 'preparer':
+        # Permission check: Only the user who signed can undo, or Admin
+        if not (req.prepared_by == request.user or user_in_roles(request.user, [ROLE_ADMIN])):
+            messages.error(request, 'You do not have permission to undo Preparer sign-off.')
+            return redirect('request_detail', pk=req.id)
+        # Clear preparer sign-off
+        req.preparer_signed = False
+        req.prepared_by = None
+        req.preparer_signed_at = None
+        messages.success(request, 'Preparer sign-off undone.')
+    elif role == 'reviewer':
+        # Permission check: Only the user who signed can undo, or Admin
+        if not (req.reviewed_by == request.user or user_in_roles(request.user, [ROLE_ADMIN])):
+            messages.error(request, 'You do not have permission to undo Reviewer sign-off.')
+            return redirect('request_detail', pk=req.id)
+        # Clear reviewer sign-off
+        req.reviewer_signed = False
+        req.reviewed_by = None
+        req.reviewed_at = None
+        messages.success(request, 'Reviewer sign-off undone.')
+    else:
+        messages.error(request, 'Invalid sign-off role.')
+        return redirect('request_detail', pk=req.id)
+    
+    # Save cleared sign-off fields first
+    if role == 'preparer':
+        req.save(update_fields=['preparer_signed', 'prepared_by', 'preparer_signed_at'])
+    else:
+        req.save(update_fields=['reviewer_signed', 'reviewed_by', 'reviewed_at'])
+    
+    # Recalculate status automatically based on sign-off flags
+    req.recalculate_status()
+    
+    return redirect('request_detail', pk=req.id)
 
 
 @login_required
@@ -1089,17 +1266,12 @@ def unlock_request(request, request_id):
         # Unlock the request
         req.is_locked = False
         
-        # Restore status to In-Review if it was Accepted or Returned
-        if req.status == 'Accepted' or req.status == 'Returned':
-            req.status = 'In-Review'
-        
+        # Status will be recalculated automatically in save() based on sign-off flags
         req.save()
         messages.success(request, 'Request unlocked.')
         
-        engagement_id = req.linked_control.engagement.id if req.linked_control.engagement else None
-        if engagement_id:
-            return redirect(f"{reverse('requests_list')}?engagement={engagement_id}")
-        return redirect('requests_list')
+        # Redirect back to Request Detail page
+        return redirect('request_detail', pk=req.id)
     except Exception as e:
         messages.error(request, f'Error unlocking request: {str(e)}')
         return redirect('requests_list')
@@ -1147,28 +1319,40 @@ def delete_document(request, doc_id):
         messages.error(request, 'Only administrators, control assessors, or control reviewers can delete documents.')
         return redirect('documents')
 
-    # Cannot delete evidence files (from Requests)
-    if doc.request and doc.doc_type == 'evidence':
-        messages.error(request, 'Cannot delete evidence files. Evidence files are managed through Requests.')
+    # Cannot delete evidence files (from Requests) - but allow deletion from request_detail if not read-only
+    if doc.request and doc.doc_type == 'evidence' and doc.is_read_only:
+        messages.error(request, 'Cannot delete read-only evidence files.')
+        if doc.request:
+            return redirect('request_detail', pk=doc.request.id)
         engagement_id = doc.engagement.id if doc.engagement else None
         if engagement_id:
             return redirect(f"{reverse('documents')}?engagement={engagement_id}")
         return redirect('documents')
 
-    # Get engagement before deleting
+    # Get engagement and request before deleting
     engagement_id = doc.engagement.id if doc.engagement else None
     folder = doc.folder
+    request_id = doc.request.id if doc.request else None
 
     # Delete file from storage then record
     try:
         doc.file.delete(save=False)
         doc.delete()
         messages.success(request, 'Document deleted successfully.')
+        
+        # Recalculate request status if document was linked to a request
+        if request_id:
+            req = Request.objects.get(id=request_id)
+            req.recalculate_status()
+            req.save()
     except Exception as e:
         messages.error(request, f'Error deleting document: {str(e)}')
 
-    # No Sheets status logic per AuditSource behavior
-
+    # Redirect back to request_detail if deleting from a request
+    if request_id:
+        return redirect('request_detail', pk=request_id)
+    
+    # Otherwise redirect to documents
     if engagement_id:
         return redirect(f"{reverse('documents')}?engagement={engagement_id}&folder={folder}")
     return redirect('documents')

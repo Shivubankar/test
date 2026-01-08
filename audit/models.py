@@ -146,10 +146,9 @@ class EngagementControl(models.Model):
 
 class Request(models.Model):
     STATUS_CHOICES = [
-        ('Open', 'Open'),
-        ('In-Review', 'In-Review'),
-        ('Accepted', 'Accepted'),
-        ('Returned', 'Returned'),
+        ('OPEN', 'Open'),
+        ('READY_FOR_REVIEW', 'Ready for Review'),
+        ('COMPLETED', 'Completed'),
     ]
     
     linked_control = models.ForeignKey(EngagementControl, on_delete=models.CASCADE, related_name='requests')
@@ -158,16 +157,23 @@ class Request(models.Model):
     due_date = models.DateField(null=True, blank=True)
     tags = models.CharField(max_length=250, blank=True, help_text="Comma-separated tags")
     assignee = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='assigned_requests')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Open')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='OPEN')
     
     # Sign-off fields
     auditor_test_notes = models.TextField(blank=True, verbose_name="Test Performed")
     test_results = models.TextField(blank=True, verbose_name="Test Results")
-    prepared_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='prepared_requests')
-    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_requests')
-    reviewed_at = models.DateTimeField(null=True, blank=True)
     
-    # Locking
+    # Preparer sign-off
+    preparer_signed = models.BooleanField(default=False)
+    prepared_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='prepared_requests')
+    preparer_signed_at = models.DateTimeField(null=True, blank=True)
+    
+    # Reviewer sign-off
+    reviewer_signed = models.BooleanField(default=False)
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_requests')
+    reviewed_at = models.DateTimeField(null=True, blank=True)  # Keep existing field name for compatibility
+    
+    # Locking (for completed requests - evidence becomes read-only)
     is_locked = models.BooleanField(default=False)
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -179,40 +185,58 @@ class Request(models.Model):
     def __str__(self):
         return f"{self.linked_control.control_id} - {self.status}"
     
-    def clean(self):
+    def recalculate_status(self):
         """
-        Business rule for acceptance/sign-off:
-        - A request can be accepted if EITHER:
-          * At least one supporting file is present (evidence OR workpaper), OR
-          * Non-empty 'Test Performed' notes are provided.
-        - Whitespace-only notes do not count as valid.
+        Automatically recalculate request status based on sign-off boolean flags.
+        
+        Status mapping:
+        - OPEN: preparer_signed = False
+        - READY_FOR_REVIEW: preparer_signed = True AND reviewer_signed = False
+        - COMPLETED: preparer_signed = True AND reviewer_signed = True
         """
-        if self.status == 'Accepted' and not self.is_locked:
-            has_file = self.documents.filter(doc_type__in=['evidence', 'workpaper']).exists()
-            has_notes = bool(self.auditor_test_notes and self.auditor_test_notes.strip())
-            if not (has_file or has_notes):
-                raise ValidationError(
-                    "Either a supporting file (evidence or workpaper) "
-                    "or non-empty 'Test Performed' notes are required before acceptance."
-                )
+        # Status is derived from sign-off flags only
+        if not self.preparer_signed:
+            new_status = 'OPEN'
+        elif self.preparer_signed and not self.reviewer_signed:
+            new_status = 'READY_FOR_REVIEW'
+        else:
+            new_status = 'COMPLETED'
+        
+        # Update status and lock state
+        self.status = new_status
+        # Auto-lock when completed
+        if new_status == 'COMPLETED':
+            self.is_locked = True
+        else:
+            # Unlock if not completed (allows edits)
+            self.is_locked = False
+        # Save only status and is_locked fields
+        self.save(update_fields=['status', 'is_locked'])
     
     def save(self, *args, **kwargs):
         """
-        Auto-lock controls when they are Accepted or Returned.
-        Set reviewer info when accepting.
+        Auto-recalculate status before saving.
+        Skip recalculation if explicitly requested (e.g., during migration) or if update_fields is specified.
         """
-        from django.utils import timezone
+        skip_recalculate = kwargs.pop('skip_recalculate', False)
+        update_fields = kwargs.get('update_fields', None)
         
-        # Lock and set reviewer info on acceptance
-        if self.status == 'Accepted' and not self.is_locked:
-            self.is_locked = True
-            if not self.reviewed_at:
-                self.reviewed_at = timezone.now()
-        
-        # Lock immediately when returned
-        if self.status == 'Returned' and not self.is_locked:
-            self.is_locked = True
+        if not skip_recalculate and not update_fields:
+            # Recalculate status based on sign-off flags
+            # Only recalculate if not using update_fields (to avoid recursion)
+            if not self.preparer_signed:
+                self.status = 'OPEN'
+            elif self.preparer_signed and not self.reviewer_signed:
+                self.status = 'READY_FOR_REVIEW'
+            else:
+                self.status = 'COMPLETED'
             
+            # Auto-lock when completed
+            if self.status == 'COMPLETED':
+                self.is_locked = True
+            else:
+                self.is_locked = False
+        # Call parent save
         super().save(*args, **kwargs)
 
 
@@ -332,6 +356,10 @@ class RequestDocument(models.Model):
         ('report_templates', 'Report Templates'),
         ('reports', 'Reports'),
         ('workplan', 'Workplan'),
+        ('evidence', 'Evidence'),
+        ('screenshots', 'Screenshots'),
+        ('policies', 'Policies'),
+        ('logs', 'Logs'),
         ('other', 'Other'),
     ]
     # Request is optional - documents can be uploaded directly without a Request
