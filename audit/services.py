@@ -40,7 +40,7 @@ def generate_engagement_controls(engagement):
                 control_id=sc.control_id,
                 defaults={
                     'standard_control': sc,
-                    'control_name': sc.control_id,
+                    'control_name': sc.title or sc.control_id,  # Use title if available, fallback to control_id
                     'control_description': sc.control_description,
                     'testing_procedure': sc.default_testing_type or '',  # Deprecated field
                     'test_applied': '',  # Empty - auditor fills this
@@ -159,7 +159,7 @@ def generate_sheets_from_questionnaire(questionnaire):
             control_id=control.control_id,
             defaults={
                 'standard_control': control,
-                'control_name': control.control_id,
+                'control_name': control.title or control.control_id,  # Use title if available, fallback to control_id
                 'control_description': control.control_description,
                 'test_applied': '',  # Empty - auditor fills this
                 'test_performed': '',  # Empty - auditor fills this (NOT from questionnaire)

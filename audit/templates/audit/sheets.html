@@ -101,6 +101,9 @@
                     <tr>
                     <td>
                         <strong>{{ control.control_id }}</strong>
+                        {% if control.control_name and control.control_name != control.control_id %}
+                        <br><small class="text-muted">{{ control.control_name }}</small>
+                        {% endif %}
                         {% if questionnaire_responses %}
                         <span class="badge bg-info ms-1" data-bs-toggle="tooltip" data-bs-html="true" 
                               title="<strong>Questionnaire Response (Read-only):</strong><br>

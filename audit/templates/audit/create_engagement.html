@@ -13,25 +13,28 @@
                 <form method="post">
                     {% csrf_token %}
                     <div class="mb-3">
-                        <label for="id_title" class="form-label">Title</label>
-                        {{ form.title }}
-                        {% if form.title.errors %}
-                            <div class="text-danger">{{ form.title.errors }}</div>
-                        {% endif %}
+                        <label for="id_title" class="form-label">Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="id_title" name="title" required>
                     </div>
                     <div class="mb-3">
-                        <label for="id_status" class="form-label">Status</label>
-                        {{ form.status }}
-                        {% if form.status.errors %}
-                            <div class="text-danger">{{ form.status.errors }}</div>
-                        {% endif %}
+                        <label for="id_client_name" class="form-label">Client Name</label>
+                        <input type="text" class="form-control" id="id_client_name" name="client_name">
                     </div>
                     <div class="mb-3">
-                        <label for="id_lead_auditor" class="form-label">Lead Auditor</label>
-                        {{ form.lead_auditor }}
-                        {% if form.lead_auditor.errors %}
-                            <div class="text-danger">{{ form.lead_auditor.errors }}</div>
-                        {% endif %}
+                        <label for="id_audit_year" class="form-label">Audit Year</label>
+                        <input type="number" class="form-control" id="id_audit_year" name="audit_year" min="2020" max="2100">
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_standards" class="form-label">Standards <span class="text-danger">*</span></label>
+                        <select class="form-select" id="id_standards" name="standards" multiple required>
+                            {% for standard in standards %}
+                            <option value="{{ standard.id }}">{{ standard.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple standards. Controls will be auto-generated from selected standards.</small>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> <strong>Note:</strong> When you select a standard (e.g., ISO 27001:2022), all controls will be automatically generated and appear in Sheets.
                     </div>
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                         <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancel</a>
