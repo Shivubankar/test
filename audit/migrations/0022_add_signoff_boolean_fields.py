@@ -3,35 +3,6 @@
 from django.db import migrations, models
 
 
-def sync_signoff_flags(apps, schema_editor):
-    """Sync existing prepared_by and reviewed_by to boolean flags"""
-    Request = apps.get_model('audit', 'Request')
-    for req in Request.objects.all():
-        # Set preparer_signed based on prepared_by
-        if req.prepared_by:
-            req.preparer_signed = True
-            if not req.preparer_signed_at:
-                req.preparer_signed_at = req.updated_at
-        # Set reviewer_signed based on reviewed_by
-        if req.reviewed_by:
-            req.reviewer_signed = True
-            if not req.reviewed_at:
-                req.reviewed_at = req.updated_at
-        # Recalculate status
-        if req.preparer_signed and req.reviewer_signed:
-            req.status = 'COMPLETED'
-        elif req.preparer_signed:
-            req.status = 'READY_FOR_REVIEW'
-        else:
-            req.status = 'OPEN'
-        req.save() # Skip recalculation since we're setting it manually
-
-
-def reverse_sync_signoff_flags(apps, schema_editor):
-    """Reverse migration - no action needed"""
-    pass
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -54,5 +25,4 @@ class Migration(migrations.Migration):
             name='reviewer_signed',
             field=models.BooleanField(default=False),
         ),
-        migrations.RunPython(sync_signoff_flags, reverse_sync_signoff_flags),
     ]

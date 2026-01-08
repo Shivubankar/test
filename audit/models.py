@@ -346,9 +346,6 @@ class RequestDocument(models.Model):
     DOC_TYPE_CHOICES = [
         ('evidence', 'Evidence'),
         ('workpaper', 'Workpaper'),
-        ('report', 'Report'),
-        ('admin', 'Admin'),
-        ('template', 'Template'),
     ]
 
     FOLDER_CHOICES = [
@@ -365,7 +362,9 @@ class RequestDocument(models.Model):
     # Request is optional - documents can be uploaded directly without a Request
     request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='documents', null=True, blank=True)
     # Engagement is required - all documents must belong to an engagement
-    engagement = models.ForeignKey(Engagement, on_delete=models.CASCADE, related_name='documents', null=True, blank=True)
+    engagement = models.ForeignKey(Engagement, on_delete=models.CASCADE, related_name='documents')
+    # Standard is required - all documents must belong to a standard (via control)
+    standard = models.ForeignKey(Standard, on_delete=models.CASCADE, related_name='documents', null=True, blank=True)
     # For documents linked to controls (from Requests/Sheets)
     linked_control = models.ForeignKey(EngagementControl, on_delete=models.SET_NULL, null=True, blank=True, related_name='documents')
     file = models.FileField(upload_to='request_docs/%Y/%m/%d/')
@@ -408,13 +407,13 @@ class RequestDocument(models.Model):
         # Auto-set linked_control from request if not set
         if not self.linked_control and self.request:
             self.linked_control = self.request.linked_control
-        # Auto-classify doc_type based on folder
-        if self.folder == 'workplan' and self.doc_type == 'workpaper':
-            pass  # Already correct
-        elif self.folder == 'reports':
-            self.doc_type = 'report'
-        elif self.folder == 'project_admin':
-            self.doc_type = 'admin'
-        elif self.folder == 'report_templates':
-            self.doc_type = 'template'
+        # Auto-set standard from control if not set
+        if not self.standard and self.linked_control and self.linked_control.standard_control:
+            self.standard = self.linked_control.standard_control.standard
+        # Ensure engagement is set - required field
+        if not self.engagement:
+            if self.linked_control:
+                self.engagement = self.linked_control.engagement
+            else:
+                raise ValidationError("Document must have an engagement. Set engagement or linked_control.")
         super().save(*args, **kwargs)

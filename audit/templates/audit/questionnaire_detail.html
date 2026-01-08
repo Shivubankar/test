@@ -5,16 +5,16 @@
 {% block extra_css %}
 <style>
     .question-card {
-        border: 1px solid #dee2e6;
+        border: 1px solid var(--bs-border);
         border-radius: 8px;
         padding: 1.25rem;
         margin-bottom: 1rem;
-        background: #fff;
+        background: rgba(37, 41, 54, 0.6);
         transition: box-shadow 0.2s ease;
     }
     
     .question-card:hover {
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
     }
     
     .question-header {
@@ -26,12 +26,12 @@
     
     .control-id {
         font-weight: 600;
-        color: #0d6efd;
+        color: var(--bs-accent);
         font-size: 1rem;
     }
     
     .question-text {
-        color: #495057;
+        color: var(--bs-text);
         margin-bottom: 1rem;
     }
     
@@ -44,17 +44,18 @@
     .answer-option {
         flex: 1;
         padding: 0.75rem;
-        border: 2px solid #dee2e6;
+        border: 2px solid var(--bs-border);
         border-radius: 6px;
         text-align: center;
         cursor: pointer;
         transition: all 0.2s ease;
-        background: #fff;
+        background: rgba(15, 17, 23, 0.6);
+        color: var(--bs-text);
     }
     
     .answer-option:hover {
-        border-color: #0d6efd;
-        background: #f8f9fa;
+        border-color: var(--bs-accent);
+        background: rgba(99, 102, 241, 0.1);
     }
     
     .answer-option input[type="radio"] {
@@ -62,8 +63,8 @@
     }
     
     .answer-option.selected {
-        border-color: #0d6efd;
-        background: #e7f3ff;
+        border-color: var(--bs-accent);
+        background: rgba(99, 102, 241, 0.2);
     }
     
     .comment-box {
@@ -74,11 +75,78 @@
         font-size: 0.875rem;
         padding: 0.5rem 1rem;
     }
+    
+    /* Sticky Submit Bar - Fixed to viewport bottom */
+    .sticky-submit-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(15, 17, 23, 0.98);
+        backdrop-filter: blur(20px);
+        border-top: 1px solid var(--bs-border);
+        padding: 1rem 1.5rem;
+        z-index: 1000;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+    }
+    
+    .sticky-submit-bar-content {
+        max-width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .sticky-submit-bar-info {
+        flex: 1;
+        min-width: 200px;
+        color: var(--bs-text-muted);
+        font-size: 0.875rem;
+    }
+    
+    .sticky-submit-bar-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-shrink: 0;
+    }
+    
+    /* Add bottom padding to page content to prevent overlap with fixed bar */
+    .questionnaire-page-wrapper {
+        padding-bottom: 100px;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .sticky-submit-bar {
+            padding: 0.75rem 1rem;
+        }
+        
+        .sticky-submit-bar-content {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.75rem;
+        }
+        
+        .sticky-submit-bar-info {
+            text-align: center;
+            min-width: auto;
+        }
+        
+        .sticky-submit-bar-actions {
+            justify-content: center;
+        }
+        
+        .sticky-submit-bar-actions .btn {
+            flex: 1;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid questionnaire-page-wrapper">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-md-8">
@@ -117,7 +185,7 @@
                         Questions ({{ question_responses|length }})
                     </h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body questionnaire-content-wrapper">
                     {% if question_responses %}
                     <form method="post" id="questionnaireForm">
                         {% csrf_token %}
@@ -174,34 +242,34 @@
                         This questionnaire has no questions yet. Questions are automatically loaded from the selected standard's controls.
                     </div>
                     {% endif %}
-                    
-                    {% if question_responses %}
-                        <!-- Action Buttons -->
-                        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
-                            <div>
-                                <small class="text-muted">
-                                    <i class="bi bi-info-circle me-1"></i>
-                                    Save as Draft to preserve your progress. Submit to generate Sheet rows.
-                                </small>
-                            </div>
-                            <div class="d-flex gap-2">
-                                {% if can_edit %}
-                                <button type="submit" form="questionnaireForm" name="action" value="save_draft" class="btn btn-outline-secondary">
-                                    <i class="bi bi-save"></i> Save Draft
-                                </button>
-                                {% endif %}
-                                {% if can_submit %}
-                                <button type="submit" form="questionnaireForm" name="action" value="submit" class="btn btn-primary" onclick="return confirm('Submit this questionnaire? This will generate Sheet rows for all answered questions.');">
-                                    <i class="bi bi-check-lg"></i> Submit Questionnaire
-                                </button>
-                                {% endif %}
-                            </div>
-                        </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
+    
+    {% if question_responses %}
+    <!-- Sticky Submit Bar - Fixed to viewport bottom -->
+    <div class="sticky-submit-bar">
+        <div class="sticky-submit-bar-content">
+            <div class="sticky-submit-bar-info">
+                <i class="bi bi-info-circle me-1"></i>
+                Save as Draft to preserve your progress. Submit to generate Sheet rows.
+            </div>
+            <div class="sticky-submit-bar-actions">
+                {% if can_edit %}
+                <button type="submit" form="questionnaireForm" name="action" value="save_draft" class="btn btn-outline-secondary">
+                    <i class="bi bi-save"></i> Save Draft
+                </button>
+                {% endif %}
+                {% if can_submit %}
+                <button type="submit" form="questionnaireForm" name="action" value="submit" class="btn btn-primary" onclick="return confirm('Submit this questionnaire? This will generate Sheet rows for all answered questions.');">
+                    <i class="bi bi-check-lg"></i> Submit Questionnaire
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <script>

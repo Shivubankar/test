@@ -115,7 +115,7 @@ def sheets(request):
         workpaper_docs = RequestDocument.objects.filter(
             linked_control=control,
             doc_type='workpaper'
-        )
+        ).select_related('standard', 'uploaded_by')
         
         control_requests.append({
             'control': control,
@@ -495,9 +495,14 @@ def upload_workpaper_control(request, control_id):
     
     uploaded_count = 0
     for file in workpaper_files:
+        # Get standard from control
+        standard = None
+        if control.standard_control:
+            standard = control.standard_control.standard
         RequestDocument.objects.create(
             engagement=control.engagement,
             linked_control=control,
+            standard=standard,
             file=file,
             doc_type='workpaper',
             folder='workplan',
@@ -560,7 +565,7 @@ def request_detail(request, pk):
     evidence_docs = RequestDocument.objects.filter(
         request=req,
         doc_type='evidence'
-    ).select_related('uploaded_by').order_by('-uploaded_at')
+    ).select_related('standard', 'uploaded_by', 'linked_control').order_by('-uploaded_at')
     
     # Sign-off permissions
     is_admin_user = request.user.is_superuser
@@ -731,107 +736,87 @@ def create_request(request, control_id):
 @login_required
 def documents(request):
     """
-    Central document repository matching AuditSource 2.0.
-    Supports folder-based filtering, direct uploads, and aggregates documents from Requests/Sheets.
+    Central document repository with filter-based structure.
+    Shows documents organized by Engagement → Standard → Control.
+    Documents module is VIEW ONLY - no uploads here.
     """
     engagement_id = request.GET.get('engagement')
-    folder = request.GET.get('folder', 'all')
-    q = request.GET.get('q', '').strip()
-    sort_by = request.GET.get('sort', 'updated')  # updated, name
+    standard_id = request.GET.get('standard')
+    control_id = request.GET.get('control')
     
     user_role = get_user_role(request.user)
     
-    # Clients can view but not upload
-    can_upload = user_in_roles(request.user, [ROLE_ADMIN, ROLE_CONTROL_ASSESSOR, ROLE_CONTROL_REVIEWER])
+    # Documents module is view-only
     can_delete = user_in_roles(request.user, [ROLE_ADMIN, ROLE_CONTROL_ASSESSOR, ROLE_CONTROL_REVIEWER])
     
+    # Engagement is required
     if engagement_id:
         engagement = get_object_or_404(Engagement, id=engagement_id)
     else:
         engagement = Engagement.objects.first()
+        if engagement:
+            # Redirect to include engagement in URL
+            return redirect(f"{reverse('documents')}?engagement={engagement.id}")
     
     # Get all documents for the engagement
-    # Documents can come from:
-    # 1. RequestDocument with engagement FK (direct uploads)
-    # 2. RequestDocument with request FK (from Requests/Sheets)
     if engagement:
-        from django.db.models import Q
-        
-        # Build query: documents with engagement OR documents via requests
-        controls = EngagementControl.objects.filter(engagement=engagement)
-        requests = Request.objects.filter(linked_control__in=controls)
-        
-        # Use Q objects to combine queries properly
-        all_documents = RequestDocument.objects.filter(
-            Q(engagement=engagement) | Q(request__in=requests)
-        ).select_related(
-            'request', 'request__linked_control', 'linked_control', 'uploaded_by', 'engagement'
-        ).distinct()
-        
-        # Backfill engagement for documents that don't have it (one-time fix)
-        docs_to_fix = all_documents.filter(engagement__isnull=True)
-        for doc in docs_to_fix:
-            if doc.request and doc.request.linked_control:
-                doc.engagement = doc.request.linked_control.engagement
-                doc.save(update_fields=['engagement'])
-        
-        # Re-query after backfill to ensure we have all documents
-        all_documents = RequestDocument.objects.filter(
-            Q(engagement=engagement) | Q(request__in=requests)
-        ).select_related(
-            'request', 'request__linked_control', 'linked_control', 'uploaded_by', 'engagement'
-        ).distinct()
-    else:
-        all_documents = RequestDocument.objects.none()
-    
-    # Filter by folder (AuditSource folder structure)
-    if folder != 'all':
-        all_documents = all_documents.filter(folder=folder)
-    
-    # Search by filename, control ID, or request title
-    if q:
-        from django.db.models import Q
-        all_documents = all_documents.filter(
-            Q(file__icontains=q) | 
-            Q(linked_control__control_id__icontains=q) |
-            Q(request__linked_control__control_id__icontains=q) |
-            Q(request__title__icontains=q)
+        documents = RequestDocument.objects.filter(engagement=engagement).select_related(
+            'request', 'request__linked_control', 'linked_control', 'linked_control__standard_control__standard',
+            'standard', 'uploaded_by', 'engagement'
         )
-    
-    # Sort
-    if sort_by == 'name':
-        all_documents = all_documents.order_by('file')
-    else:
-        all_documents = all_documents.order_by('-updated_at')
-    
-    # Evaluate queryset to list for template (ensures it's not empty due to lazy evaluation)
-    # Add source and is_read_only properties to each document
-    documents_list = []
-    for doc in all_documents:
-        documents_list.append(doc)
-    
-    # Folder counts for sidebar (use same query pattern)
-    if engagement:
-        from django.db.models import Q
-        controls = EngagementControl.objects.filter(engagement=engagement)
-        requests = Request.objects.filter(linked_control__in=controls)
         
-        folder_counts = {
-            'project_admin': RequestDocument.objects.filter(
-                (Q(engagement=engagement) | Q(request__in=requests)) & Q(folder='project_admin')
-            ).distinct().count(),
-            'report_templates': RequestDocument.objects.filter(
-                (Q(engagement=engagement) | Q(request__in=requests)) & Q(folder='report_templates')
-            ).distinct().count(),
-            'reports': RequestDocument.objects.filter(
-                (Q(engagement=engagement) | Q(request__in=requests)) & Q(folder='reports')
-            ).distinct().count(),
-            'workplan': RequestDocument.objects.filter(
-                (Q(engagement=engagement) | Q(request__in=requests)) & Q(folder='workplan')
-            ).distinct().count(),
-        }
+        # Filter by standard if provided
+        if standard_id:
+            documents = documents.filter(standard_id=standard_id)
+        
+        # Filter by control if provided
+        if control_id:
+            documents = documents.filter(linked_control_id=control_id)
+        
+        # Order by updated date (newest first)
+        documents = documents.order_by('-updated_at')
     else:
-        folder_counts = {'project_admin': 0, 'report_templates': 0, 'reports': 0, 'workplan': 0}
+        documents = RequestDocument.objects.none()
+    
+    # Get standards and controls for the filter tree
+    standards_list = []
+    selected_standard = None
+    selected_control = None
+    
+    if engagement:
+        # Get all standards for this engagement
+        standards = engagement.standards.all().order_by('name')
+        
+        # Get selected standard
+        if standard_id:
+            try:
+                selected_standard = Standard.objects.get(id=standard_id)
+            except Standard.DoesNotExist:
+                pass
+        
+        # Get selected control
+        if control_id:
+            try:
+                selected_control = EngagementControl.objects.get(id=control_id, engagement=engagement)
+            except EngagementControl.DoesNotExist:
+                pass
+        
+        # Build standards list with controls
+        for standard in standards:
+            controls = EngagementControl.objects.filter(
+                engagement=engagement,
+                standard_control__standard=standard
+            ).select_related('standard_control').order_by('control_id')
+            
+            # Count documents per control
+            for control in controls:
+                control.doc_count = documents.filter(linked_control=control).count()
+            
+            standards_list.append({
+                'standard': standard,
+                'controls': controls,
+                'total_docs': sum(c.doc_count for c in controls)
+            })
     
     engagements = Engagement.objects.all()
     
@@ -839,12 +824,10 @@ def documents(request):
         'engagement': engagement,
         'engagements': engagements,
         'user_role': user_role,
-        'documents': documents_list,  # Use evaluated list
-        'folder': folder,
-        'q': q,
-        'sort_by': sort_by,
-        'folder_counts': folder_counts,
-        'can_upload': can_upload,
+        'documents': documents,
+        'standards_list': standards_list,
+        'selected_standard': selected_standard,
+        'selected_control': selected_control,
         'can_delete': can_delete,
     }
     
@@ -1051,11 +1034,16 @@ def upload_evidence_from_sheets(request, control_id):
         else:
             uploaded_count = 0
             for file_obj in files:
+                # Get standard from control
+                standard = None
+                if control.standard_control:
+                    standard = control.standard_control.standard
                 # Create RequestDocument record with default 'evidence' folder
                 RequestDocument.objects.create(
                     request=req,
                     engagement=control.engagement,
                     linked_control=control,
+                    standard=standard,
                     file=file_obj,
                     doc_type='evidence',
                     folder='evidence',  # Default folder
