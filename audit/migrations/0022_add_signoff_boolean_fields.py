@@ -24,7 +24,7 @@ def sync_signoff_flags(apps, schema_editor):
             req.status = 'READY_FOR_REVIEW'
         else:
             req.status = 'OPEN'
-        req.save(skip_recalculate=True)  # Skip recalculation since we're setting it manually
+        req.save() # Skip recalculation since we're setting it manually
 
 
 def reverse_sync_signoff_flags(apps, schema_editor):
