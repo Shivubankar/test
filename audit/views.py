@@ -457,13 +457,14 @@ def update_control(request, control_id):
     """
     Update control fields: test_applied, test_performed, test_results.
     Status is backend-controlled and computed from conditions.
+    Supports both regular form submission and AJAX requests.
     """
     control = get_object_or_404(EngagementControl, id=control_id)
-    
+
     test_applied = request.POST.get(f'test_applied_{control.id}', '').strip()
     test_performed = request.POST.get(f'test_performed_{control.id}', '').strip()
     test_results = request.POST.get(f'test_results_{control.id}', '').strip()
-    
+
     # Update fields (allow empty strings for test_performed and test_results)
     if test_applied is not None:
         control.test_applied = test_applied
@@ -471,10 +472,17 @@ def update_control(request, control_id):
         control.test_performed = test_performed
     if test_results is not None:  # Allow empty string - auditor fills this
         control.test_results = test_results
-    
+
     control.save()
+
+    # Check if this is an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'message': f'Control {control.control_id} saved'
+        })
+
     messages.success(request, f'Control {control.control_id} updated successfully.')
-    
     return redirect(f"{reverse('sheets')}?engagement={control.engagement.id}")
 
 
