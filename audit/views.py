@@ -7,6 +7,7 @@ from django.http import JsonResponse, FileResponse
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 from django.urls import reverse
+from django.db import transaction
 from .models import Engagement, EngagementControl, Request, RequestDocument, Standard, StandardControl, Questionnaire, QuestionnaireQuestion, QuestionnaireResponse
 from .services import generate_engagement_controls, create_engagement_with_controls
 from .forms import EvidenceUploadForm, WorkpaperUploadForm, RequestReviewForm
@@ -274,6 +275,163 @@ def questionnaires(request):
     }
     
     return render(request, 'audit/questionnaires.html', context)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+@role_required([ROLE_ADMIN, ROLE_CONTROL_ASSESSOR, ROLE_CONTROL_REVIEWER, ROLE_CLIENT])
+def upload_controls_from_excel(request):
+    """
+    Excel upload page for auto-generating EngagementControl rows.
+    Hard guard: if any controls exist for engagement, do nothing.
+    """
+    engagement_id = request.GET.get('engagement')
+    if request.method == 'POST':
+        engagement_id = request.POST.get('engagement_id') or engagement_id
+
+    engagement = get_object_or_404(Engagement, id=engagement_id) if engagement_id else None
+    engagements = Engagement.objects.all()
+    user_role = get_user_role(request.user)
+
+    if request.method == 'POST':
+        if not engagement:
+            messages.error(request, 'Please select an engagement before uploading.')
+            return redirect('excel_upload')
+
+        file_obj = request.FILES.get('excel_file')
+        if not file_obj:
+            messages.error(request, 'Please select an Excel file to upload.')
+            return redirect(f"{reverse('excel_upload')}?engagement={engagement.id}")
+
+        filename = file_obj.name.lower()
+        if not (filename.endswith('.xlsx') or filename.endswith('.xls')):
+            messages.error(request, 'Invalid file type. Please upload an .xlsx or .xls file.')
+            return redirect(f"{reverse('excel_upload')}?engagement={engagement.id}")
+
+        # Hard guard: never generate if any controls already exist.
+        if EngagementControl.objects.filter(engagement=engagement).exists():
+            messages.warning(request, 'Controls already exist for this engagement. Excel upload skipped.')
+            return redirect(f"{reverse('excel_upload')}?engagement={engagement.id}")
+
+        try:
+            import pandas as pd
+        except ImportError:
+            messages.error(request, 'Excel upload requires pandas. Please install pandas and try again.')
+            return redirect(f"{reverse('excel_upload')}?engagement={engagement.id}")
+
+        try:
+            df = pd.read_excel(file_obj)
+        except Exception as e:
+            messages.error(request, f'Unable to read Excel file: {str(e)}')
+            return redirect(f"{reverse('excel_upload')}?engagement={engagement.id}")
+
+        def normalize_column_name(value):
+            name = str(value).strip().lower()
+            name = name.replace(' ', '_')
+            name = ''.join(ch for ch in name if ch.isalnum() or ch == '_')
+            return name
+
+        normalized_columns = {normalize_column_name(c): c for c in df.columns}
+        aliases = {
+            'control_id': {'control_id', 'control id'},
+            'control_description': {'control_description', 'control description'},
+        }
+
+        rename_map = {}
+        for canonical, names in aliases.items():
+            for name in names:
+                normalized = normalize_column_name(name)
+                if normalized in normalized_columns:
+                    rename_map[normalized_columns[normalized]] = canonical
+                    break
+
+        required_columns = ['control_id', 'control_description']
+        missing_columns = [c for c in required_columns if c not in rename_map.values()]
+        if missing_columns:
+            messages.error(
+                request,
+                "Required columns not found. Accepted names: Control ID, Control Description (case-insensitive)"
+            )
+            return redirect(f"{reverse('excel_upload')}?engagement={engagement.id}")
+
+        df = df.rename(columns=rename_map)
+
+        rows = []
+        row_errors = []
+        duplicates = set()
+        seen = set()
+        for idx, row in df.iterrows():
+            control_id = row.get('control_id')
+            control_description = row.get('control_description')
+
+            if control_id is None or pd.isna(control_id):
+                control_id = ''
+            else:
+                control_id = str(control_id).strip()
+
+            if control_description is None or pd.isna(control_description):
+                control_description = ''
+            else:
+                control_description = str(control_description).strip()
+
+            if not control_id or not control_description:
+                row_errors.append(idx + 2)
+                continue
+
+            normalized_id = control_id.lower()
+            if normalized_id in seen:
+                duplicates.add(control_id)
+            else:
+                seen.add(normalized_id)
+                rows.append({
+                    'control_id': control_id,
+                    'control_description': control_description,
+                })
+
+        if row_errors:
+            messages.error(
+                request,
+                f"Missing required values in rows: {', '.join(str(r) for r in row_errors)}"
+            )
+            return redirect(f"{reverse('excel_upload')}?engagement={engagement.id}")
+
+        if duplicates:
+            messages.error(
+                request,
+                f"Duplicate control_id values detected: {', '.join(sorted(duplicates))}"
+            )
+            return redirect(f"{reverse('excel_upload')}?engagement={engagement.id}")
+
+        if not rows:
+            messages.error(request, 'No valid control rows found in the Excel file.')
+            return redirect(f"{reverse('excel_upload')}?engagement={engagement.id}")
+
+        try:
+            with transaction.atomic():
+                for row in rows:
+                    EngagementControl.objects.create(
+                        engagement=engagement,
+                        control_id=row['control_id'],
+                        control_name=row['control_id'],
+                        control_description=row['control_description'],
+                        source='excel',
+                        test_applied='',
+                        test_performed='',
+                        test_results='',
+                    )
+        except Exception as e:
+            messages.error(request, f'Error creating controls: {str(e)}')
+            return redirect(f"{reverse('excel_upload')}?engagement={engagement.id}")
+
+        messages.success(request, f'Created {len(rows)} controls from Excel upload.')
+        return redirect(f"{reverse('sheets')}?engagement={engagement.id}")
+
+    context = {
+        'engagement': engagement,
+        'engagements': engagements,
+        'user_role': user_role,
+    }
+    return render(request, 'audit/excel_upload.html', context)
 
 @login_required
 @require_http_methods(["GET", "POST"])
@@ -998,9 +1156,15 @@ def upload_evidence(request, request_id):
             uploaded_count = 0
             for file_obj in files:
                 # Create RequestDocument record - this is what appears in Documents repository
-                # Engagement is auto-set in save() from request.linked_control.engagement
+                # Explicitly set required relationships to avoid relying on save().
                 RequestDocument.objects.create(
                     request=req,
+                    engagement=req.linked_control.engagement,
+                    linked_control=req.linked_control,
+                    standard=(
+                        req.linked_control.standard_control.standard
+                        if req.linked_control.standard_control else None
+                    ),
                     file=file_obj,
                     doc_type='evidence',
                     folder='workplan',  # Default folder for evidence

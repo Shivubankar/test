@@ -7,6 +7,7 @@ urlpatterns = [
     path('sheets/', views.sheets, name='sheets'),
     path('forms/', views.forms, name='forms'),
     path('questionnaires/', views.questionnaires, name='questionnaires'),
+    path('excel-upload/', views.upload_controls_from_excel, name='excel_upload'),
     path('questionnaires/create/<int:engagement_id>/', views.create_questionnaire, name='create_questionnaire'),
     path('questionnaires/<int:questionnaire_id>/', views.questionnaire_detail, name='questionnaire_detail'),
     path('requests/', views.requests_list, name='requests_list'),

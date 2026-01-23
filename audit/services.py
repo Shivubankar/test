@@ -138,6 +138,13 @@ def generate_sheets_from_questionnaire(questionnaire):
     engagement = questionnaire.engagement
     standard = questionnaire.standard
     created_count = 0
+
+    # If Excel upload already created controls, do not generate from questionnaire.
+    if EngagementControl.objects.filter(engagement=engagement, source='excel').exists():
+        logger.warning(
+            f'Questionnaire {questionnaire.id}: Excel-generated controls exist; skipping sheet generation.'
+        )
+        return 0
     
     # Get all responses with answers
     responses = QuestionnaireResponse.objects.filter(

@@ -86,6 +86,7 @@ class EngagementControl(models.Model):
         ('auto', 'Auto-Generated from Standard'),
         ('manual', 'Manual/Custom'),
         ('questionnaire', 'Generated from Questionnaire'),
+        ('excel', 'Generated from Excel Upload'),
     ]
     
     engagement = models.ForeignKey(Engagement, on_delete=models.CASCADE, related_name='controls')
