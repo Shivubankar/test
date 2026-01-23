@@ -195,9 +195,18 @@
                         </style>
                         <div class="d-flex align-items-center gap-2">
                             {% if control.preparer_signed_at %}
-                                <button class="btn btn-sm btn-success sign-pill signed">
-                                    <i class="bi bi-check2"></i> Preparer
-                                </button>
+                                <span class="badge bg-success sign-pill signed">
+                                    <i class="bi bi-check2"></i> Signed
+                                </span>
+                                <span class="small text-muted">Preparer</span>
+                                {% if item.can_undo_preparer %}
+                                <form method="post" action="{% url 'undo_signoff_control' control.id %}"
+                                      onsubmit="return confirm('Are you sure you want to undo this sign-off?');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="role" value="preparer">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Undo</button>
+                                </form>
+                                {% endif %}
                             {% else %}
                                 <form method="post" action="{% url 'signoff_control' control.id %}">
                                     {% csrf_token %}
@@ -210,9 +219,18 @@
                             {% endif %}
                             
                             {% if control.reviewer_signed_at %}
-                                <button class="btn btn-sm btn-success sign-pill signed">
-                                    <i class="bi bi-check2"></i> Reviewer
-                                </button>
+                                <span class="badge bg-success sign-pill signed">
+                                    <i class="bi bi-check2"></i> Signed
+                                </span>
+                                <span class="small text-muted">Reviewer</span>
+                                {% if item.can_undo_reviewer %}
+                                <form method="post" action="{% url 'undo_signoff_control' control.id %}"
+                                      onsubmit="return confirm('Are you sure you want to undo this sign-off?');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="role" value="reviewer">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Undo</button>
+                                </form>
+                                {% endif %}
                             {% else %}
                                 <form method="post" action="{% url 'signoff_control' control.id %}">
                                     {% csrf_token %}

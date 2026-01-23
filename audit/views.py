@@ -100,6 +100,7 @@ def sheets(request):
     for req in requests:
         requests_dict[req.linked_control.id].append(req)
     
+    is_admin_user = user_in_roles(request.user, [ROLE_ADMIN])
     # Create control-requests pairs for template
     control_requests = []
     for control in controls:
@@ -117,6 +118,8 @@ def sheets(request):
             doc_type='workpaper'
         ).select_related('standard', 'uploaded_by')
         
+        can_undo_preparer = (control.preparer_signed_by == request.user) or is_admin_user
+        can_undo_reviewer = (control.reviewer_signed_by == request.user) or is_admin_user
         control_requests.append({
             'control': control,
             'requests': sorted_requests,  # All requests sorted (Open first, then by creation date)
@@ -124,6 +127,8 @@ def sheets(request):
             'request_count': len(control_requests_list),
             'workpaper_count': workpaper_docs.count(),  # Only workpapers, not evidence
             'workpaper_docs': workpaper_docs,  # Workpaper queryset for template
+            'can_undo_preparer': can_undo_preparer and control.preparer_signed_at is not None,
+            'can_undo_reviewer': can_undo_reviewer and control.reviewer_signed_at is not None,
         })
     
     engagements = Engagement.objects.all()
@@ -131,7 +136,6 @@ def sheets(request):
     is_control_assessor = request.user.groups.filter(name=ROLE_CONTROL_ASSESSOR).exists()
     is_control_reviewer = request.user.groups.filter(name=ROLE_CONTROL_REVIEWER).exists()
     is_client = request.user.groups.filter(name=ROLE_CLIENT).exists()
-    is_admin_user = request.user.is_superuser
     
     context = {
         'engagement': engagement,
@@ -558,6 +562,40 @@ def signoff_control(request, control_id):
     
     control.save()
     messages.success(request, 'Sign-off recorded.')
+    return redirect(f"{reverse('sheets')}?engagement={control.engagement.id}")
+
+
+@login_required
+@require_http_methods(["POST"])
+def undo_signoff_control(request, control_id):
+    """
+    Undo a sign-off on a control by role (preparer or reviewer).
+    Clears signed_by and signed_at fields only.
+    role param: preparer | reviewer
+    """
+    control = get_object_or_404(EngagementControl, id=control_id)
+    role = request.POST.get('role')
+    is_admin_user = user_in_roles(request.user, [ROLE_ADMIN])
+
+    if role == 'preparer':
+        if not (is_admin_user or control.preparer_signed_by == request.user):
+            messages.error(request, 'You do not have permission to undo Preparer sign-off.')
+            return redirect(f"{reverse('sheets')}?engagement={control.engagement.id}")
+        control.preparer_signed_by = None
+        control.preparer_signed_at = None
+        control.save(update_fields=['preparer_signed_by', 'preparer_signed_at'])
+        messages.success(request, 'Preparer sign-off undone.')
+    elif role == 'reviewer':
+        if not (is_admin_user or control.reviewer_signed_by == request.user):
+            messages.error(request, 'You do not have permission to undo Reviewer sign-off.')
+            return redirect(f"{reverse('sheets')}?engagement={control.engagement.id}")
+        control.reviewer_signed_by = None
+        control.reviewer_signed_at = None
+        control.save(update_fields=['reviewer_signed_by', 'reviewer_signed_at'])
+        messages.success(request, 'Reviewer sign-off undone.')
+    else:
+        messages.error(request, 'Invalid sign-off role.')
+
     return redirect(f"{reverse('sheets')}?engagement={control.engagement.id}")
 
 

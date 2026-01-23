@@ -35,6 +35,7 @@ urlpatterns = [
     path('create-engagement/', views.create_engagement, name='create_engagement'),
     path('create-control/', views.create_control, name='create_control'),
     path('controls/<int:control_id>/signoff/', views.signoff_control, name='signoff_control'),
+    path('controls/<int:control_id>/undo-signoff/', views.undo_signoff_control, name='undo_signoff_control'),
     path('update-control/<int:control_id>/', views.update_control, name='update_control'),
     path('upload-workpaper-control/<int:control_id>/', views.upload_workpaper_control, name='upload_workpaper_control'),
     
