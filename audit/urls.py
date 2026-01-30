@@ -37,6 +37,7 @@ urlpatterns = [
     path('create-control/', views.create_control, name='create_control'),
     path('controls/<int:control_id>/signoff/', views.signoff_control, name='signoff_control'),
     path('controls/<int:control_id>/undo-signoff/', views.undo_signoff_control, name='undo_signoff_control'),
+    path('sheets/autosave-field/', views.autosave_control_field, name='autosave_control_field'),
     path('update-control/<int:control_id>/', views.update_control, name='update_control'),
     path('upload-workpaper-control/<int:control_id>/', views.upload_workpaper_control, name='upload_workpaper_control'),
     

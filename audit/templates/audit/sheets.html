@@ -117,21 +117,21 @@
                     <td>{{ control.control_description|truncatewords:20 }}</td>
                     <td>
                         {% if can_upload_workpaper %}
-                        <input type="text" class="form-control form-control-sm" name="test_applied_{{ control.id }}" form="updateControl{{ control.id }}" value="{% if control.test_applied %}{{ control.test_applied }}{% endif %}" placeholder="Describe test applied...">
+                        <input type="text" class="form-control form-control-sm auto-save-field" name="test_applied_{{ control.id }}" form="updateControl{{ control.id }}" data-control-id="{{ control.id }}" data-field-name="test_applied" value="{% if control.test_applied %}{{ control.test_applied }}{% endif %}" placeholder="Describe test applied...">
                                     {% else %}
                         <span class="text-muted">{% if control.test_applied %}{{ control.test_applied }}{% else %}-{% endif %}</span>
                                     {% endif %}
                     </td>
                     <td style="min-width: 200px;">
                         {% if can_upload_workpaper %}
-                        <textarea class="form-control form-control-sm" name="test_performed_{{ control.id }}" form="updateControl{{ control.id }}" rows="2" placeholder="Describe testing performed...">{% if control.test_performed %}{{ control.test_performed }}{% endif %}</textarea>
+                        <textarea class="form-control form-control-sm auto-save-field" name="test_performed_{{ control.id }}" form="updateControl{{ control.id }}" data-control-id="{{ control.id }}" data-field-name="test_performed" rows="2" placeholder="Describe testing performed...">{% if control.test_performed %}{{ control.test_performed }}{% endif %}</textarea>
                         {% else %}
                         <small class="text-muted">{% if control.test_performed %}{{ control.test_performed|truncatewords:15 }}{% else %}-{% endif %}</small>
                                     {% endif %}
                     </td>
                     <td style="min-width: 200px;">
                         {% if can_upload_workpaper %}
-                        <textarea class="form-control form-control-sm" name="test_results_{{ control.id }}" form="updateControl{{ control.id }}" rows="2" placeholder="Audit conclusion (e.g., 'No exceptions noted')...">{{ control.test_results }}</textarea>
+                        <textarea class="form-control form-control-sm auto-save-field" name="test_results_{{ control.id }}" form="updateControl{{ control.id }}" data-control-id="{{ control.id }}" data-field-name="test_results" rows="2" placeholder="Audit conclusion (e.g., 'No exceptions noted')...">{{ control.test_results }}</textarea>
                             {% else %}
                         <small class="text-muted">{{ control.test_results|truncatewords:15|default:"-" }}</small>
                             {% endif %}
@@ -281,39 +281,6 @@
                         </div>
                     </div>
                     {% endif %}
-                    {% if can_upload_workpaper %}
-                    <!-- Hidden form for updating control fields -->
-                    <form method="post" action="{% url 'update_control' control.id %}" id="updateControl{{ control.id }}" style="display: none;">
-                        {% csrf_token %}
-                    </form>
-                    
-                    <!-- Workpaper Upload Modal for Control -->
-                    <div class="modal fade" id="workpaperModal{{ control.id }}" tabindex="-1">
-                        <div class="modal-dialog modal-lg">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Upload Workpaper</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <form method="post" action="{% url 'upload_workpaper_control' control.id %}" enctype="multipart/form-data">
-                                                {% csrf_token %}
-                                    <div class="modal-body">
-                                        <div class="mb-3">
-                                            <label class="form-label">Workpaper Files (Select multiple files)</label>
-                                            <input type="file" class="form-control" name="workpaper_files" accept=".pdf,.doc,.docx,.xls,.xlsx" multiple>
-                                            <small class="form-text text-muted">You can select and upload multiple files at once.</small>
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-success">Upload</button>
-                                    </div>
-                                            </form>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
                     <!-- Evidence Upload Modal from Sheets -->
                     {% if can_upload_evidence %}
                     <div class="modal fade" id="evidenceUploadModal{{ control.id }}" tabindex="-1">
@@ -569,32 +536,36 @@
         const yearFilterContainer = document.getElementById('year-filter-container');
         
         // Handle engagement selection change
-        engagementSelect.addEventListener('change', function() {
-            const engagementId = this.value;
-            
-            if (engagementId) {
-                // Redirect to dashboard with engagement parameter
-                // The backend will provide available years and show/hide the year filter
-                window.location.href = '?engagement=' + engagementId;
-            } else {
-                // No engagement selected, go to base URL
-                window.location.href = '{% url "dashboard" %}';
-            }
-        });
+        if (engagementSelect) {
+            engagementSelect.addEventListener('change', function() {
+                const engagementId = this.value;
+                
+                if (engagementId) {
+                    // Redirect to dashboard with engagement parameter
+                    // The backend will provide available years and show/hide the year filter
+                    window.location.href = '?engagement=' + engagementId;
+                } else {
+                    // No engagement selected, go to base URL
+                    window.location.href = '{% url "dashboard" %}';
+                }
+            });
+        }
         
         // Handle year selection change
-        yearSelect.addEventListener('change', function() {
-            const engagementId = engagementSelect.value;
-            const year = this.value;
-            
-            if (engagementId) {
-                let url = '?engagement=' + engagementId;
-                if (year) {
-                    url += '&year=' + year;
+        if (yearSelect && engagementSelect) {
+            yearSelect.addEventListener('change', function() {
+                const engagementId = engagementSelect.value;
+                const year = this.value;
+                
+                if (engagementId) {
+                    let url = '?engagement=' + engagementId;
+                    if (year) {
+                        url += '&year=' + year;
+                    }
+                    window.location.href = url;
                 }
-                window.location.href = url;
-            }
-        });
+            });
+        }
         
         // Force enable all buttons in modals
         function enableModalButtons() {
@@ -626,70 +597,80 @@
             return new bootstrap.Tooltip(tooltipTriggerEl);
         });
 
-        // Auto-save control fields using AJAX
-        const autoSaveTimeouts = {};
-        const saveIndicators = {};
+        // Auto-save control fields using AJAX (field-level only)
+        const autoSaveTimeouts = new Map();
+        const saveIndicators = new Map();
+        const autosaveUrl = "{% url 'autosave_control_field' %}";
 
         // Create save indicator for each field
-        document.querySelectorAll('input[name^="test_applied_"], textarea[name^="test_performed_"], textarea[name^="test_results_"]').forEach(function(field) {
-            // Create save indicator element
+        document.querySelectorAll('[data-control-id][data-field-name]').forEach(function(field) {
             const indicator = document.createElement('small');
             indicator.style.cssText = 'position: absolute; right: 5px; top: 5px; color: #6c757d; font-size: 0.75rem; display: none;';
             indicator.className = 'save-indicator';
 
-            // Make parent position relative
             const parent = field.parentElement;
             if (parent && parent.style.position !== 'relative') {
                 parent.style.position = 'relative';
             }
             parent.appendChild(indicator);
+            saveIndicators.set(field, indicator);
 
-            saveIndicators[field.name] = indicator;
-
-            // Listen for input changes (triggers as you type)
             field.addEventListener('input', function() {
-                const fieldName = this.name;
-                const fieldValue = this.value;
-
-                // Show "typing..." indicator
-                saveIndicators[fieldName].textContent = '...';
-                saveIndicators[fieldName].style.display = 'inline';
-                saveIndicators[fieldName].style.color = '#6c757d';
-
-                // Clear existing timeout
-                if (autoSaveTimeouts[fieldName]) {
-                    clearTimeout(autoSaveTimeouts[fieldName]);
+                const indicatorEl = saveIndicators.get(field);
+                if (indicatorEl) {
+                    indicatorEl.textContent = '...';
+                    indicatorEl.style.display = 'inline';
+                    indicatorEl.style.color = '#6c757d';
                 }
 
-                // Set new timeout to save after 1.5 seconds of inactivity
-                autoSaveTimeouts[fieldName] = setTimeout(function() {
-                    autoSaveField(field, fieldName, fieldValue);
-                }, 1500);
+                if (autoSaveTimeouts.has(field)) {
+                    clearTimeout(autoSaveTimeouts.get(field));
+                }
+
+                autoSaveTimeouts.set(field, setTimeout(function() {
+                    autoSaveField(field);
+                }, 800));
+            });
+
+            field.addEventListener('blur', function() {
+                if (autoSaveTimeouts.has(field)) {
+                    clearTimeout(autoSaveTimeouts.get(field));
+                    autoSaveTimeouts.delete(field);
+                }
+                autoSaveField(field);
+            });
+
+            // Prevent Enter from submitting hidden update_control forms
+            field.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
             });
         });
 
-        function autoSaveField(field, fieldName, fieldValue) {
-            const formId = field.getAttribute('form');
-            if (!formId) return;
+        function autoSaveField(field) {
+            const controlId = field.dataset.controlId;
+            const fieldName = field.dataset.fieldName;
+            if (!controlId || !fieldName) return;
 
-            const form = document.getElementById(formId);
-            if (!form) return;
+            const indicator = saveIndicators.get(field);
+            if (indicator) {
+                indicator.textContent = 'Saving...';
+                indicator.style.display = 'inline';
+                indicator.style.color = '#0d6efd';
+            }
 
-            const indicator = saveIndicators[fieldName];
+            const formData = new FormData();
+            formData.append('control_id', controlId);
+            formData.append('field_name', fieldName);
+            formData.append('value', field.value);
 
-            // Show saving indicator
-            indicator.textContent = 'Saving...';
-            indicator.style.display = 'inline';
-            indicator.style.color = '#0d6efd';
+            console.log(controlId, fieldName, field.value);
 
-            // Prepare form data
-            const formData = new FormData(form);
-
-            // Get CSRF token
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-            // Send AJAX request
-            fetch(form.action, {
+            fetch(autosaveUrl, {
                 method: 'POST',
                 body: formData,
                 headers: {
@@ -701,29 +682,27 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Show saved indicator
-                    indicator.textContent = 'Saved ✓';
-                    indicator.style.color = '#198754';
-
-                    // Hide indicator after 2 seconds
-                    setTimeout(function() {
-                        indicator.style.display = 'none';
-                    }, 2000);
-                } else {
-                    // Show error
+                    if (indicator) {
+                        indicator.textContent = 'Saved ✓';
+                        indicator.style.color = '#198754';
+                        setTimeout(function() {
+                            indicator.style.display = 'none';
+                        }, 2000);
+                    }
+                } else if (indicator) {
                     indicator.textContent = 'Error!';
                     indicator.style.color = '#dc3545';
                 }
             })
             .catch(error => {
                 console.error('Auto-save error:', error);
-                indicator.textContent = 'Error!';
-                indicator.style.color = '#dc3545';
-
-                // Hide error after 3 seconds
-                setTimeout(function() {
-                    indicator.style.display = 'none';
-                }, 3000);
+                if (indicator) {
+                    indicator.textContent = 'Error!';
+                    indicator.style.color = '#dc3545';
+                    setTimeout(function() {
+                        indicator.style.display = 'none';
+                    }, 3000);
+                }
             });
         }
 

@@ -651,6 +651,35 @@ def update_control(request, control_id):
 @login_required
 @require_http_methods(["POST"])
 @role_required([ROLE_ADMIN, ROLE_CONTROL_ASSESSOR, ROLE_CONTROL_REVIEWER])
+def autosave_control_field(request):
+    """
+    Autosave a single EngagementControl field.
+    """
+    control_id = request.POST.get('control_id')
+    field_name = request.POST.get('field_name')
+    value = request.POST.get('value', '')
+
+    allowed_fields = {
+        'test_applied',
+        'test_performed',
+        'test_results',
+        'evidence_required',
+        'control_description',
+    }
+
+    if not control_id or field_name not in allowed_fields:
+        return JsonResponse({'success': False, 'error': 'Invalid field'}, status=400)
+
+    control = get_object_or_404(EngagementControl, id=control_id)
+    setattr(control, field_name, value)
+    control.save(update_fields=[field_name])
+
+    return JsonResponse({'success': True})
+
+
+@login_required
+@require_http_methods(["POST"])
+@role_required([ROLE_ADMIN, ROLE_CONTROL_ASSESSOR, ROLE_CONTROL_REVIEWER])
 def upload_workpaper_control(request, control_id):
     """
     Upload workpaper documents directly to a control (not via request).
