@@ -14,11 +14,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="{% url 'dashboard' %}">
-                <span class="logo-shield">
-                    <i class="bi bi-shield-fill" style="color: white; font-size: 1.2rem;"></i>
-                </span>
-                <span class="logo-text">BlackShield</span>
-                <span style="color: var(--bs-text-muted); font-weight: 400;">AuditSource</span>
+                <img class="navbar-logo" src="{% static 'audit/images/blackshield-hq.png' %}" alt="BlackShield HQ">
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -62,18 +58,31 @@
                     </li>
                 </ul>
                 <div class="navbar-nav d-flex flex-row align-items-center">
-                    <span class="navbar-text me-3">
-                        <i class="bi bi-person-circle"></i> {{ user.get_full_name|default:user.username }}
-                        <span style="color: var(--bs-accent); font-weight: 600;">({{ user_role }})</span>
-                    </span>
-                    {% if user_role == 'Admin' %}
-                    <a class="nav-link me-2" href="{% url 'admin:index' %}">
-                        <i class="bi bi-gear"></i> Admin
-                    </a>
-                    {% endif %}
-                    <a class="nav-link" href="{% url 'logout' %}">
-                        <i class="bi bi-box-arrow-right"></i> Logout
-                    </a>
+                    <div class="dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-person-circle me-1"></i> {{ user.get_full_name|default:user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'admin:index' %}">
+                                    <i class="bi bi-sliders me-2"></i> Settings
+                                </a>
+                            </li>
+                            {% if user.is_superuser %}
+                            <li>
+                                <a class="dropdown-item" href="{% url 'admin:index' %}">
+                                    <i class="bi bi-gear me-2"></i> Admin Panel
+                                </a>
+                            </li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'logout' %}">
+                                    <i class="bi bi-box-arrow-right me-2"></i> Logout
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
