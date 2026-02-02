@@ -283,7 +283,7 @@ def questionnaires(request):
 def upload_controls_from_excel(request):
     """
     Excel upload page for auto-generating EngagementControl rows.
-    Hard guard: if any controls exist for engagement, do nothing.
+    Creates controls per control_id if missing.
     """
     engagement_id = request.GET.get('engagement')
     if request.method == 'POST':
@@ -306,11 +306,6 @@ def upload_controls_from_excel(request):
         filename = file_obj.name.lower()
         if not (filename.endswith('.xlsx') or filename.endswith('.xls')):
             messages.error(request, 'Invalid file type. Please upload an .xlsx or .xls file.')
-            return redirect(f"{reverse('excel_upload')}?engagement={engagement.id}")
-
-        # Hard guard: never generate if any controls already exist.
-        if EngagementControl.objects.filter(engagement=engagement).exists():
-            messages.warning(request, 'Controls already exist for this engagement. Excel upload skipped.')
             return redirect(f"{reverse('excel_upload')}?engagement={engagement.id}")
 
         try:
@@ -406,25 +401,46 @@ def upload_controls_from_excel(request):
             messages.error(request, 'No valid control rows found in the Excel file.')
             return redirect(f"{reverse('excel_upload')}?engagement={engagement.id}")
 
+        created_count = 0
+        skipped_count = 0
         try:
             with transaction.atomic():
                 for row in rows:
+                    control_id = row['control_id']
+                    if EngagementControl.objects.filter(
+                        engagement=engagement,
+                        control_id=control_id
+                    ).exists():
+                        skipped_count += 1
+                        continue
+
                     EngagementControl.objects.create(
                         engagement=engagement,
-                        control_id=row['control_id'],
-                        control_name=row['control_id'],
+                        control_id=control_id,
+                        control_name=control_id,
                         control_description=row['control_description'],
                         source='excel',
                         test_applied='',
                         test_performed='',
                         test_results='',
                     )
+                    created_count += 1
         except Exception as e:
             messages.error(request, f'Error creating controls: {str(e)}')
             return redirect(f"{reverse('excel_upload')}?engagement={engagement.id}")
 
-        messages.success(request, f'Created {len(rows)} controls from Excel upload.')
-        return redirect(f"{reverse('sheets')}?engagement={engagement.id}")
+        if created_count > 0:
+            messages.success(
+                request,
+                f'Excel upload completed: {created_count} new controls created, {skipped_count} skipped (already existed).'
+            )
+            return redirect(f"{reverse('sheets')}?engagement={engagement.id}")
+
+        messages.info(
+            request,
+            'No new controls found. All uploaded controls already exist.'
+        )
+        return redirect(f"{reverse('excel_upload')}?engagement={engagement.id}")
 
     context = {
         'engagement': engagement,

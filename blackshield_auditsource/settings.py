@@ -5,8 +5,16 @@ Django settings for blackshield_auditsource project.
 from pathlib import Path
 import os
 
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+if load_dotenv:
+    load_dotenv(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -31,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'audit',
+    'ai_assistant',
 ]
 
 MIDDLEWARE = [
@@ -140,3 +149,4 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB
 LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/admin/login/'
+
