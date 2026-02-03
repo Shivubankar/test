@@ -5,7 +5,6 @@
 
 {% block extra_css %}
 <style>
-    /* Status pills with colored dots - AuditSource 2.0 style */
     .status-pill {
         display: inline-flex;
         align-items: center;
@@ -17,24 +16,24 @@
         border: 1px solid transparent;
         transition: all 0.2s ease;
     }
-    
+
     .status-pill.active {
         background-color: #0d6efd;
         color: white;
         border-color: #0d6efd;
     }
-    
+
     .status-pill:not(.active) {
         background-color: #f8f9fa;
         color: #495057;
         border-color: #dee2e6;
     }
-    
+
     .status-pill:not(.active):hover {
         background-color: #e9ecef;
         border-color: #adb5bd;
     }
-    
+
     .status-dot {
         width: 8px;
         height: 8px;
@@ -42,17 +41,16 @@
         display: inline-block;
         flex-shrink: 0;
     }
-    
+
     .status-dot.open { background-color: #0d6efd; }
     .status-dot.ready { background-color: #ffc107; }
     .status-dot.returned { background-color: #dc3545; }
     .status-dot.completed { background-color: #198754; }
-    
+
     .status-pill.active .status-dot {
         background-color: white;
     }
-    
-    /* Status badges in table */
+
     .status-badge {
         display: inline-flex;
         align-items: center;
@@ -62,13 +60,12 @@
         font-size: 0.8rem;
         font-weight: 500;
     }
-    
+
     .status-badge-open { background-color: #e7f3ff; color: #0d6efd; }
     .status-badge-ready { background-color: #fff3cd; color: #856404; }
     .status-badge-returned { background-color: #f8d7da; color: #721c24; }
     .status-badge-completed { background-color: #d1e7dd; color: #0f5132; }
-    
-    /* Owner avatars */
+
     .owner-avatar {
         width: 28px;
         height: 28px;
@@ -82,8 +79,7 @@
         font-weight: 600;
         margin-right: 6px;
     }
-    
-    /* Tag pills */
+
     .tag-pill {
         display: inline-block;
         padding: 3px 10px;
@@ -95,23 +91,21 @@
         margin-bottom: 2px;
         font-weight: 500;
     }
-    
-    /* Action buttons */
+
     .action-btn {
         padding: 4px 8px;
         border-radius: 4px;
         transition: background-color 0.15s ease;
     }
-    
+
     .action-btn:hover {
         background-color: #f8f9fa;
     }
-    
-    /* Search bar */
+
     .search-container {
         position: relative;
     }
-    
+
     .search-clear {
         position: absolute;
         right: 40px;
@@ -124,25 +118,24 @@
         padding: 4px 8px;
         display: none;
     }
-    
+
     .search-clear.show {
         display: block;
     }
-    
+
     .search-clear:hover {
         color: #495057;
     }
-    
-    /* Table column widths */
-    .table th:nth-child(1) { width: 40px; } /* Checkbox */
-    .table th:nth-child(2) { width: 120px; } /* Keys */
-    .table th:nth-child(3) { width: 140px; } /* Status */
-    .table th:nth-child(4) { width: 200px; } /* Title */
-    .table th:nth-child(5) { width: auto; min-width: 250px; } /* Description */
-    .table th:nth-child(6) { width: 100px; } /* Due */
-    .table th:nth-child(7) { width: 120px; } /* Owners */
-    .table th:nth-child(8) { width: 150px; } /* Tags */
-    .table th:nth-child(9) { width: 100px; } /* Actions */
+
+    .table th:nth-child(1) { width: 40px; }
+    .table th:nth-child(2) { width: 120px; }
+    .table th:nth-child(3) { width: 140px; }
+    .table th:nth-child(4) { width: 200px; }
+    .table th:nth-child(5) { width: auto; min-width: 250px; }
+    .table th:nth-child(6) { width: 100px; }
+    .table th:nth-child(7) { width: 120px; }
+    .table th:nth-child(8) { width: 150px; }
+    .table th:nth-child(9) { width: 100px; }
 </style>
 {% endblock %}
 
@@ -150,101 +143,97 @@
 <div class="requests-page">
     <div class="requests-header">
         <div class="container-fluid">
-            <!-- Header -->
             <div class="row mb-4">
-        <div class="col-md-6">
-            <h2>
-                <i class="bi bi-inbox me-2" style="color: var(--bs-accent);"></i>
-                Requests{% if engagement %} ({{ counts.All }}){% endif %}
-            </h2>
-            <p class="text-muted mb-0">Central Evidence Request Tracker</p>
-        </div>
-        <div class="col-md-6 text-end">
-            <div class="d-flex align-items-center gap-2 justify-content-end flex-wrap">
-                <label class="form-label mb-0">Select Engagement:</label>
-                <select class="form-select d-inline-block w-auto" id="engagementSelect">
-                    <option value="">-- All Engagements --</option>
-                    {% for eng in engagements %}
-                    <optgroup label="{{ eng.title }} ({{ eng.status }})">
-                        <option value="?engagement={{ eng.id }}" {% if engagement and engagement.id == eng.id and not selected_standard %}selected{% endif %}>
-                            {{ eng.title }} ({{ eng.status }})
-                        </option>
-                        {% for standard in eng.standards.all %}
-                        <option value="?engagement={{ eng.id }}&standard={{ standard.id }}" {% if engagement and engagement.id == eng.id and selected_standard and selected_standard.id == standard.id %}selected{% endif %}>
-                            &nbsp;&nbsp;&nbsp;&nbsp;{{ standard.name }}
-                        </option>
-                        {% endfor %}
-                    </optgroup>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
+                <div class="col-md-6">
+                    <h2>
+                        <i class="bi bi-inbox me-2" style="color: var(--bs-accent);"></i>
+                        Requests{% if engagement %} ({{ counts.All }}){% endif %}
+                    </h2>
+                    <p class="text-muted mb-0">Central Evidence Request Tracker</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="d-flex align-items-center gap-2 justify-content-end flex-wrap">
+                        <label class="form-label mb-0">Select Engagement:</label>
+                        <select class="form-select d-inline-block w-auto" id="engagementSelect">
+                            <option value="">-- All Engagements --</option>
+                            {% for eng in engagements %}
+                            <optgroup label="{{ eng.title }} ({{ eng.status }})">
+                                <option value="?engagement={{ eng.id }}" {% if engagement and engagement.id == eng.id and not selected_standard %}selected{% endif %}>
+                                    {{ eng.title }} ({{ eng.status }})
+                                </option>
+                                {% for standard in eng.standards.all %}
+                                <option value="?engagement={{ eng.id }}&standard={{ standard.id }}" {% if engagement and engagement.id == eng.id and selected_standard and selected_standard.id == standard.id %}selected{% endif %}>
+                                    &nbsp;&nbsp;&nbsp;&nbsp;{{ standard.name }}
+                                </option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
             </div>
 
             {% if engagement %}
-            <!-- Status Filter Pills & Search -->
             <div class="row mb-3">
-        <div class="col-md-12">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                <!-- Status Pills -->
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <a href="?engagement={{ engagement.id }}{% if selected_standard %}&standard={{ selected_standard.id }}{% endif %}" 
-                       class="status-pill {% if not status_filter %}active{% endif %}" 
-                       style="text-decoration: none;">
-                        All ({{ counts.All }})
-                    </a>
-                    <a href="?engagement={{ engagement.id }}{% if selected_standard %}&standard={{ selected_standard.id }}{% endif %}&status=OPEN" 
-                       class="status-pill {% if status_filter == 'OPEN' %}active{% endif %}" 
-                       style="text-decoration: none;">
-                        <span class="status-dot open"></span>
-                        Open ({{ counts.OPEN }})
-                    </a>
-                    <a href="?engagement={{ engagement.id }}{% if selected_standard %}&standard={{ selected_standard.id }}{% endif %}&status=READY_FOR_REVIEW" 
-                       class="status-pill {% if status_filter == 'READY_FOR_REVIEW' %}active{% endif %}" 
-                       style="text-decoration: none;">
-                        <span class="status-dot ready"></span>
-                        Ready for Review ({{ counts.READY_FOR_REVIEW }})
-                    </a>
-                    <a href="?engagement={{ engagement.id }}{% if selected_standard %}&standard={{ selected_standard.id }}{% endif %}&status=COMPLETED" 
-                       class="status-pill {% if status_filter == 'COMPLETED' %}active{% endif %}" 
-                       style="text-decoration: none;">
-                        <span class="status-dot completed"></span>
-                        Completed ({{ counts.COMPLETED }})
-                    </a>
+                <div class="col-md-12">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <a href="?engagement={{ engagement.id }}{% if selected_standard %}&standard={{ selected_standard.id }}{% endif %}"
+                               class="status-pill {% if not status_filter %}active{% endif %}"
+                               style="text-decoration: none;">
+                                All ({{ counts.All }})
+                            </a>
+                            <a href="?engagement={{ engagement.id }}{% if selected_standard %}&standard={{ selected_standard.id }}{% endif %}&status=OPEN"
+                               class="status-pill {% if status_filter == 'OPEN' %}active{% endif %}"
+                               style="text-decoration: none;">
+                                <span class="status-dot open"></span>
+                                Open ({{ counts.OPEN }})
+                            </a>
+                            <a href="?engagement={{ engagement.id }}{% if selected_standard %}&standard={{ selected_standard.id }}{% endif %}&status=READY_FOR_REVIEW"
+                               class="status-pill {% if status_filter == 'READY_FOR_REVIEW' %}active{% endif %}"
+                               style="text-decoration: none;">
+                                <span class="status-dot ready"></span>
+                                Ready for Review ({{ counts.READY_FOR_REVIEW }})
+                            </a>
+                            <a href="?engagement={{ engagement.id }}{% if selected_standard %}&standard={{ selected_standard.id }}{% endif %}&status=COMPLETED"
+                               class="status-pill {% if status_filter == 'COMPLETED' %}active{% endif %}"
+                               style="text-decoration: none;">
+                                <span class="status-dot completed"></span>
+                                Completed ({{ counts.COMPLETED }})
+                            </a>
+                        </div>
+
+                        <div class="d-flex gap-2 align-items-center">
+                            <form class="d-flex search-container" method="get" id="searchForm">
+                                <input type="hidden" name="engagement" value="{{ engagement.id }}">
+                                {% if selected_standard %}
+                                <input type="hidden" name="standard" value="{{ selected_standard.id }}">
+                                {% endif %}
+                                {% if status_filter %}
+                                <input type="hidden" name="status" value="{{ status_filter }}">
+                                {% endif %}
+                                <input class="form-control form-control-sm"
+                                       type="search"
+                                       name="q"
+                                       value="{{ q }}"
+                                       placeholder="Search by control ID, title, description, or owner"
+                                       id="searchInput"
+                                       style="width: 300px;">
+                                <button type="button" class="search-clear {% if q %}show{% endif %}" id="searchClear" title="Clear search">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" type="submit">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </form>
+                            {% if user_role == 'Admin' or user_role == 'Control Assessor' or user_role == 'Control Reviewer' %}
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createRequestModal">
+                                <i class="bi bi-plus-lg"></i> Create Request
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-                
-                <!-- Search & Actions -->
-                <div class="d-flex gap-2 align-items-center">
-                    <form class="d-flex search-container" method="get" id="searchForm">
-                        <input type="hidden" name="engagement" value="{{ engagement.id }}">
-                        {% if selected_standard %}
-                        <input type="hidden" name="standard" value="{{ selected_standard.id }}">
-                        {% endif %}
-                        {% if status_filter %}
-                        <input type="hidden" name="status" value="{{ status_filter }}">
-                        {% endif %}
-                        <input class="form-control form-control-sm" 
-                               type="search" 
-                               name="q" 
-                               value="{{ q }}" 
-                               placeholder="Search by control ID, title, description, or owner"
-                               id="searchInput"
-                               style="width: 300px;">
-                        <button type="button" class="search-clear {% if q %}show{% endif %}" id="searchClear" title="Clear search">
-                            <i class="bi bi-x-lg"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-secondary" type="submit">
-                            <i class="bi bi-search"></i>
-                        </button>
-                    </form>
-                    {% if user_role == 'Admin' or user_role == 'Control Assessor' or user_role == 'Control Reviewer' %}
-                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createRequestModal">
-                        <i class="bi bi-plus-lg"></i> Create Request
-                    </button>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
             </div>
             {% endif %}
         </div>
@@ -253,7 +242,6 @@
     <div class="requests-table-wrapper">
         <div class="container-fluid">
             {% if engagement %}
-            <!-- Requests Table -->
             <div class="row">
                 <div class="col-md-12">
                     <div class="card">
@@ -261,120 +249,92 @@
                             {% if requests %}
                             <div class="table-responsive">
                                 <table class="table table-hover mb-0 requests-table">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>
-                                        <input type="checkbox" class="form-check-input" id="selectAll">
-                                    </th>
-                                    <th>Keys</th>
-                                    <th>Status</th>
-                                    <th>Title</th>
-                                    <th>Description</th>
-                                    <th>Due</th>
-                                    <th>Owners</th>
-                                    <th>Tags</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for req in requests %}
-                                <tr>
-                                    <td>
-                                        <input type="checkbox" class="form-check-input request-checkbox" value="{{ req.id }}">
-                                    </td>
-                                    <td>
-                                        <strong>{{ req.linked_control.control_id }}</strong>
-                                    </td>
-                                    <td>
-                                        {% if req.status == 'OPEN' %}
-                                        <span class="status-badge status-badge-open">
-                                            <span class="status-dot open"></span>
-                                            Open
-                                        </span>
-                                        {% elif req.status == 'READY_FOR_REVIEW' %}
-                                        <span class="status-badge status-badge-ready">
-                                            <span class="status-dot ready"></span>
-                                            Ready for Review
-                                        </span>
-                                        {% elif req.status == 'COMPLETED' %}
-                                        <span class="status-badge status-badge-completed">
-                                            <span class="status-dot completed"></span>
-                                            Completed
-                                        </span>
-                                        {% else %}
-                                        <span class="status-badge status-badge-open">
-                                            {{ req.status }}
-                                        </span>
-                                        {% endif %}
-                                        {% if req.is_locked %}
-                                        <br><small class="text-muted"><i class="bi bi-lock"></i> Locked</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <span title="{{ req.title|default:'-' }}">
-                                            {{ req.title|default:'-'|truncatechars:40 }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="text-muted" title="{{ req.description|default:'-' }}">
-                                            {{ req.description|default:'-'|truncatewords:15 }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        {% if req.due_date %}
-                                        {{ req.due_date|date:"Y-m-d" }}
-                                        {% else %}
-                                        <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if req.assignee %}
-                                        <div class="d-flex align-items-center">
-                                            <span class="owner-avatar">
-                                                {{ req.assignee.get_full_name|default:req.assignee.username|slice:":2"|upper }}
-                                            </span>
-                                            <small>{{ req.assignee.get_full_name|default:req.assignee.username|truncatechars:12 }}</small>
-                                        </div>
-                                        {% else %}
-                                        <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="d-flex flex-wrap align-items-center gap-1">
-                                            {% if req.tags %}
-                                            <span class="tag-pill">{{ req.tags|truncatechars:20 }}</span>
-                                            {% endif %}
-                                            {% if req.evidence_count > 0 %}
-                                            <i class="bi bi-paperclip evidence-indicator" title="{{ req.evidence_count }} evidence document(s)"></i>
-                                            {% endif %}
-                                            {% if not req.tags and req.evidence_count == 0 %}
-                                            <span class="text-muted">-</span>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex gap-1">
-                                            <a href="{% url 'request_detail' req.id %}" 
-                                               class="btn btn-sm btn-outline-secondary action-btn" 
-                                               title="View Request">
-                                                <i class="bi bi-eye"></i>
-                                            </a>
-                                            {% if req.evidence_count > 0 %}
-                                            <a href="{% url 'documents' %}?engagement={{ engagement.id }}&doc_type=evidence&q={{ req.linked_control.control_id }}" 
-                                               class="btn btn-sm btn-outline-secondary action-btn" 
-                                               title="View Evidence ({{ req.evidence_count }} document{{ req.evidence_count|pluralize }})">
-                                                <i class="bi bi-paperclip"></i>
-                                            </a>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th><input type="checkbox" class="form-check-input" id="selectAll"></th>
+                                            <th>Keys</th>
+                                            <th>Status</th>
+                                            <th>Title</th>
+                                            <th>Description</th>
+                                            <th>Due</th>
+                                            <th>Owners</th>
+                                            <th>Tags</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for req in requests %}
+                                        <tr>
+                                            <td><input type="checkbox" class="form-check-input request-checkbox" value="{{ req.id }}"></td>
+                                            <td><strong>{{ req.linked_control.control_id }}</strong></td>
+                                            <td>
+                                                {% if req.status == 'OPEN' %}
+                                                <span class="status-badge status-badge-open"><span class="status-dot open"></span>Open</span>
+                                                {% elif req.status == 'READY_FOR_REVIEW' %}
+                                                <span class="status-badge status-badge-ready"><span class="status-dot ready"></span>Ready for Review</span>
+                                                {% elif req.status == 'COMPLETED' %}
+                                                <span class="status-badge status-badge-completed"><span class="status-dot completed"></span>Completed</span>
+                                                {% else %}
+                                                <span class="status-badge status-badge-open">{{ req.status }}</span>
+                                                {% endif %}
+                                                {% if req.is_locked %}
+                                                <br><small class="text-muted"><i class="bi bi-lock"></i> Locked</small>
+                                                {% endif %}
+                                            </td>
+                                            <td><span title="{{ req.title|default:'-' }}">{{ req.title|default:'-'|truncatechars:40 }}</span></td>
+                                            <td><span class="text-muted" title="{{ req.description|default:'-' }}">{{ req.description|default:'-'|truncatewords:15 }}</span></td>
+                                            <td>
+                                                {% if req.due_date %}
+                                                {{ req.due_date|date:"Y-m-d" }}
+                                                {% else %}
+                                                <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if req.assignee %}
+                                                <div class="d-flex align-items-center">
+                                                    <span class="owner-avatar">{{ req.assignee.get_full_name|default:req.assignee.username|slice:":2"|upper }}</span>
+                                                    <small>{{ req.assignee.get_full_name|default:req.assignee.username|truncatechars:12 }}</small>
+                                                </div>
+                                                {% else %}
+                                                <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="d-flex flex-wrap align-items-center gap-1">
+                                                    {% if req.tags %}
+                                                    <span class="tag-pill">{{ req.tags|truncatechars:20 }}</span>
+                                                    {% endif %}
+                                                    {% if req.evidence_count > 0 %}
+                                                    <i class="bi bi-paperclip evidence-indicator" title="{{ req.evidence_count }} evidence document(s)"></i>
+                                                    {% endif %}
+                                                    {% if not req.tags and req.evidence_count == 0 %}
+                                                    <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex gap-1">
+                                                    <a href="{% url 'request_detail' req.id %}"
+                                                       class="btn btn-sm btn-outline-secondary action-btn"
+                                                       title="View Request">
+                                                        <i class="bi bi-eye"></i>
+                                                    </a>
+                                                    {% if req.evidence_count > 0 %}
+                                                    <a href="{% url 'documents' %}?engagement={{ engagement.id }}&doc_type=evidence&q={{ req.linked_control.control_id }}"
+                                                       class="btn btn-sm btn-outline-secondary action-btn"
+                                                       title="View Evidence ({{ req.evidence_count }} document{{ req.evidence_count|pluralize }})">
+                                                        <i class="bi bi-paperclip"></i>
+                                                    </a>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
                                 </table>
                             </div>
                             {% else %}
-                            <!-- Empty State -->
                             <div class="text-center py-5">
                                 <i class="bi bi-inbox text-muted" style="font-size: 3.5rem;"></i>
                                 <h5 class="mt-3 mb-2">No evidence requests yet.</h5>
@@ -390,57 +350,6 @@
                     </div>
                 </div>
             </div>
-
-    <!-- Create Request Modal -->
-    {% if user_role == 'Admin' or user_role == 'Control Assessor' or user_role == 'Control Reviewer' %}
-    <div class="modal fade" id="createRequestModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form method="post" action="{% url 'create_request' 0 %}" id="createRequestForm">
-                    {% csrf_token %}
-                    <div class="modal-header">
-                        <h5 class="modal-title">Create Request</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label">Control <span class="text-danger">*</span></label>
-                            <select class="form-select" id="crControlSelect" required>
-                                <option value="">-- Select Control --</option>
-                                {% for ctrl in engagement.controls.all %}
-                                <option value="{{ ctrl.id }}">{{ ctrl.control_id }} - {{ ctrl.description|truncatechars:80 }}</option>
-                                {% endfor %}
-                            </select>
-                            <input type="hidden" name="engagement" value="{{ engagement.id }}">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Title</label>
-                            <input class="form-control" name="title" maxlength="200" placeholder="Request title">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Description</label>
-                            <textarea class="form-control" name="description" rows="3" placeholder="Request description"></textarea>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Due Date</label>
-                                <input type="date" class="form-control" name="due_date">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Tags (comma separated)</label>
-                                <input class="form-control" name="tags" placeholder="tag1, tag2, tag3">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Create</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    {% endif %}
             {% else %}
             <div class="alert alert-info">
                 <i class="bi bi-info-circle me-2"></i>
@@ -457,25 +366,20 @@
 </div>
 
 <script>
-// Engagement selector
 document.getElementById('engagementSelect')?.addEventListener('change', function() {
     const selectedValue = this.value;
     if (selectedValue) {
-        // Value is already a query string like "?engagement=1&standard=2"
         window.location.href = selectedValue;
     } else {
-        // Clear all filters
         window.location.href = window.location.pathname;
     }
 });
 
-// Select all checkbox
 document.getElementById('selectAll')?.addEventListener('change', function() {
     const checkboxes = document.querySelectorAll('.request-checkbox');
     checkboxes.forEach(cb => cb.checked = this.checked);
 });
 
-// Search clear button
 const searchInput = document.getElementById('searchInput');
 const searchClear = document.getElementById('searchClear');
 if (searchInput && searchClear) {
@@ -486,7 +390,7 @@ if (searchInput && searchClear) {
             searchClear.classList.remove('show');
         }
     });
-    
+
     searchClear.addEventListener('click', function() {
         searchInput.value = '';
         searchClear.classList.remove('show');
@@ -494,18 +398,6 @@ if (searchInput && searchClear) {
     });
 }
 
-// Debounced search (optional - can be enabled if needed)
-// let searchTimeout;
-// searchInput?.addEventListener('input', function() {
-//     clearTimeout(searchTimeout);
-//     searchTimeout = setTimeout(() => {
-//         if (this.value.length > 2 || this.value.length === 0) {
-//             document.getElementById('searchForm').submit();
-//         }
-//     }, 500);
-// });
-
-// Create Request form handler
 const crForm = document.getElementById('createRequestForm');
 const crSelect = document.getElementById('crControlSelect');
 if (crForm && crSelect) {

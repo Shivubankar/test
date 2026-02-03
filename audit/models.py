@@ -86,7 +86,6 @@ class EngagementControl(models.Model):
         ('auto', 'Auto-Generated from Standard'),
         ('manual', 'Manual/Custom'),
         ('questionnaire', 'Generated from Questionnaire'),
-        ('excel', 'Generated from Excel Upload'),
     ]
     
     engagement = models.ForeignKey(Engagement, on_delete=models.CASCADE, related_name='controls')
@@ -101,6 +100,7 @@ class EngagementControl(models.Model):
     test_applied = models.CharField(max_length=200, blank=True, verbose_name="Test Applied", help_text="Auditor-planned test method (empty by default, fully editable)")
     test_performed = models.TextField(blank=True, verbose_name="Test Performed", help_text="Auditor execution notes – free text (empty by default, fully editable)")
     test_results = models.TextField(blank=True, verbose_name="Test Results", help_text="Audit conclusion – free text (e.g., 'No exceptions noted')")
+    evidence_required = models.TextField(blank=True, verbose_name="Evidence Required", help_text="Describe what evidence the client must provide (e.g. policy document, screenshots, logs, approvals)")
     
     # Sign-offs (independent by role)
     preparer_signed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='controls_prepared')

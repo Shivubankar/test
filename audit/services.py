@@ -138,13 +138,6 @@ def generate_sheets_from_questionnaire(questionnaire):
     engagement = questionnaire.engagement
     standard = questionnaire.standard
     created_count = 0
-
-    # If Excel upload already created controls, do not generate from questionnaire.
-    if EngagementControl.objects.filter(engagement=engagement, source='excel').exists():
-        logger.warning(
-            f'Questionnaire {questionnaire.id}: Excel-generated controls exist; skipping sheet generation.'
-        )
-        return 0
     
     # Get all responses with answers
     responses = QuestionnaireResponse.objects.filter(
@@ -186,3 +179,59 @@ def generate_sheets_from_questionnaire(questionnaire):
     
     logger.info(f'Questionnaire {questionnaire.id}: {created_count} sheet rows created')
     return created_count
+def get_or_create_questionnaire(engagement, standard):
+    """
+    Auto-generate or fetch questionnaire for engagement + standard.
+    
+    Business Rule:
+    - If questionnaire exists for (engagement, standard) → return the most recent one
+    - If not → auto-create with:
+      - Name: "{Standard Name} Questionnaire"
+      - Status: 'Draft'
+      - Auto-load all StandardControls as questions
+    
+    Handles duplicate questionnaires by selecting the most recently updated one.
+    
+    Returns:
+        Questionnaire instance
+    """
+    from .models import Questionnaire, QuestionnaireQuestion, StandardControl
+    
+    # Try to get existing questionnaire(s) - handle duplicates by getting most recent
+    existing_questionnaires = Questionnaire.objects.filter(
+        engagement=engagement,
+        standard=standard
+    ).order_by('-updated_at')
+    
+    if existing_questionnaires.exists():
+        # Use the most recently updated questionnaire
+        questionnaire = existing_questionnaires.first()
+        created = False
+    else:
+        # Create new questionnaire
+        questionnaire = Questionnaire.objects.create(
+            engagement=engagement,
+            standard=standard,
+            name=f'{standard.name} Questionnaire',
+            status='Draft',
+        )
+        created = True
+    
+    # If created, auto-load all standard controls as questions
+    if created:
+        standard_controls = StandardControl.objects.filter(
+            standard=standard,
+            is_active=True
+        ).order_by('control_id')
+        
+        for idx, sc in enumerate(standard_controls):
+            QuestionnaireQuestion.objects.create(
+                questionnaire=questionnaire,
+                control=sc,
+                question_text=sc.control_description,
+                order=idx + 1
+            )
+    
+    return questionnaire
+
+
