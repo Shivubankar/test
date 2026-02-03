@@ -1,0 +1,46 @@
+{% extends 'audit/base.html' %}
+
+{% block title %}Excel Upload - BlackShield AuditSource{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>
+                <i class="bi bi-file-earmark-spreadsheet me-2" style="color: var(--bs-accent);"></i>
+                Excel Upload
+            </h2>
+            <p class="text-muted mb-0">Upload Excel to generate controls for an engagement.</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Select Engagement</label>
+                        <select class="form-select" name="engagement_id" required>
+                            <option value="">-- Select Engagement --</option>
+                            {% for eng in engagements %}
+                            <option value="{{ eng.id }}" {% if engagement and engagement.id == eng.id %}selected{% endif %}>
+                                {{ eng.title }} ({{ eng.status }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Excel File (.xlsx or .xls)</label>
+                        <input type="file" class="form-control" name="excel_file" accept=".xlsx,.xls" required>
+                        <small class="text-muted">Required columns: Control ID, Control Description</small>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-upload"></i> Upload & Generate
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
