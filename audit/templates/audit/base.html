@@ -56,6 +56,11 @@
                             <i class="bi bi-folder"></i> Documents
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'ai_assistant' %}active{% endif %}" href="{% url 'ai_assistant' %}">
+                            <i class="bi bi-robot"></i> AI Assistant
+                        </a>
+                    </li>
                 </ul>
                 <div class="navbar-nav d-flex flex-row align-items-center">
                     <div class="dropdown">

@@ -1,0 +1,86 @@
+{% extends 'audit/base.html' %}
+{% load static %}
+
+{% block title %}AI Assistant - BlackShield AuditSource{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'ai_assistant/css/ai_assistant.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="ai-assistant-shell">
+    <div class="ai-assistant-header">
+        <h4 class="mb-0">AI Assistant</h4>
+    </div>
+    <div class="ai-assistant-body" id="aiMessages">
+        <div class="ai-empty">Ask a question to get started.</div>
+    </div>
+    <form id="aiChatForm" class="ai-assistant-input">
+        {% csrf_token %}
+        <textarea id="aiMessageInput" rows="3" placeholder="Ask a question..."></textarea>
+        <div class="ai-input-actions">
+            <button type="submit" class="btn btn-primary">Send</button>
+        </div>
+        <div class="ai-input-status" id="aiStatus"></div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('aiChatForm');
+    const input = document.getElementById('aiMessageInput');
+    const messages = document.getElementById('aiMessages');
+    const status = document.getElementById('aiStatus');
+
+    function appendMessage(content, role) {
+        if (messages.querySelector('.ai-empty')) {
+            messages.innerHTML = '';
+        }
+        const bubble = document.createElement('div');
+        bubble.className = 'ai-bubble ' + role;
+        bubble.textContent = content;
+        messages.appendChild(bubble);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const message = input.value.trim();
+        if (!message) {
+            status.textContent = 'Enter a message.';
+            return;
+        }
+        status.textContent = 'Sending...';
+        appendMessage(message, 'user');
+        input.value = '';
+
+        const formData = new FormData();
+        formData.append('message', message);
+
+        fetch("{% url 'ai_assistant_chat' %}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': form.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                appendMessage(data.answer || '', 'assistant');
+                status.textContent = '';
+            } else {
+                status.textContent = data.error || 'Send failed.';
+            }
+        })
+        .catch(() => {
+            status.textContent = 'AI Assistant is offline. Please start Ollama.';
+        });
+    });
+});
+</script>
+{% endblock %}
