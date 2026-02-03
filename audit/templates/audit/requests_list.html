@@ -1,4 +1,5 @@
 {% extends 'audit/base.html' %}
+{% load static %}
 
 {% block title %}Requests - BlackShield AuditSource{% endblock %}
 
@@ -146,9 +147,11 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Header -->
-    <div class="row mb-4">
+<div class="requests-page">
+    <div class="requests-header">
+        <div class="container-fluid">
+            <!-- Header -->
+            <div class="row mb-4">
         <div class="col-md-6">
             <h2>
                 <i class="bi bi-inbox me-2" style="color: var(--bs-accent);"></i>
@@ -176,11 +179,11 @@
                 </select>
             </div>
         </div>
-    </div>
+            </div>
 
-    {% if engagement %}
-    <!-- Status Filter Pills & Search -->
-    <div class="row mb-3">
+            {% if engagement %}
+            <!-- Status Filter Pills & Search -->
+            <div class="row mb-3">
         <div class="col-md-12">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <!-- Status Pills -->
@@ -242,16 +245,22 @@
                 </div>
             </div>
         </div>
+            </div>
+            {% endif %}
+        </div>
     </div>
 
-    <!-- Requests Table -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-body p-0">
-                    {% if requests %}
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
+    <div class="requests-table-wrapper">
+        <div class="container-fluid">
+            {% if engagement %}
+            <!-- Requests Table -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body p-0">
+                            {% if requests %}
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0 requests-table">
                             <thead class="table-light">
                                 <tr>
                                     <th>
@@ -362,25 +371,25 @@
                                 </tr>
                                 {% endfor %}
                             </tbody>
-                        </table>
+                                </table>
+                            </div>
+                            {% else %}
+                            <!-- Empty State -->
+                            <div class="text-center py-5">
+                                <i class="bi bi-inbox text-muted" style="font-size: 3.5rem;"></i>
+                                <h5 class="mt-3 mb-2">No evidence requests yet.</h5>
+                                <p class="text-muted mb-4">Create a request to collect audit evidence from the client.</p>
+                                {% if user_role == 'Admin' or user_role == 'Control Assessor' or user_role == 'Control Reviewer' %}
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRequestModal">
+                                    <i class="bi bi-plus-lg"></i> Create Request
+                                </button>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
-                    {% else %}
-                    <!-- Empty State -->
-                    <div class="text-center py-5">
-                        <i class="bi bi-inbox text-muted" style="font-size: 3.5rem;"></i>
-                        <h5 class="mt-3 mb-2">No evidence requests yet.</h5>
-                        <p class="text-muted mb-4">Create a request to collect audit evidence from the client.</p>
-                        {% if user_role == 'Admin' or user_role == 'Control Assessor' or user_role == 'Control Reviewer' %}
-                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRequestModal">
-                            <i class="bi bi-plus-lg"></i> Create Request
-                        </button>
-                        {% endif %}
-                    </div>
-                    {% endif %}
                 </div>
             </div>
-        </div>
-    </div>
 
     <!-- Create Request Modal -->
     {% if user_role == 'Admin' or user_role == 'Control Assessor' or user_role == 'Control Reviewer' %}
@@ -432,12 +441,19 @@
         </div>
     </div>
     {% endif %}
-    {% else %}
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle me-2"></i>
-        Please select an engagement to view requests.
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                Please select an engagement to view requests.
+            </div>
+            {% endif %}
+        </div>
     </div>
-    {% endif %}
+
+    <div class="app-footer">
+        <img src="{% static 'audit/images/blackshield-hq.png' %}" alt="BlackShield HQ">
+        <span>BlackShield HQ – Internal Governance, Risk & Compliance Platform</span>
+    </div>
 </div>
 
 <script>

@@ -35,7 +35,18 @@
         </div>
 
         <div class="ai-chat">
-            <div class="chat-messages hidden" id="messageList"></div>
+            <div class="chat-messages" id="messageList">
+                {% if active_conversation %}
+                    {% for msg in messages %}
+                    <div class="ai-message {{ msg.role }}">
+                        <div class="ai-message-content">{{ msg.content }}</div>
+                        <div class="ai-message-time">{{ msg.created_at|date:"H:i" }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="ai-empty">Start a new conversation by sending a message.</div>
+                {% endif %}
+            </div>
             <div class="chat-input sticky-bottom">
                 <form id="chatForm" class="ai-input">
                     {% csrf_token %}
@@ -217,6 +228,10 @@
                     chatStatus.textContent = 'AI Assistant is offline. Please start Ollama.';
                 });
             });
+        }
+
+        if (messageList) {
+            messageList.scrollTop = messageList.scrollHeight;
         }
 
         function appendMessage(label, content, role) {

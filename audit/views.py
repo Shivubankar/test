@@ -12,6 +12,8 @@ from .models import Engagement, EngagementControl, Request, RequestDocument, Sta
 from .services import generate_engagement_controls, create_engagement_with_controls
 from .forms import EvidenceUploadForm, WorkpaperUploadForm, RequestReviewForm
 import os
+import io
+import zipfile
 from functools import wraps
 from django.utils import timezone
 
@@ -1081,6 +1083,69 @@ def documents(request):
     }
     
     return render(request, 'audit/documents.html', context)
+
+
+@login_required
+def export_documents(request):
+    """
+    Export filtered documents as an audit-friendly ZIP.
+    """
+    engagement_id = request.GET.get('engagement')
+    standard_id = request.GET.get('standard')
+    control_id = request.GET.get('control')
+
+    if not engagement_id:
+        messages.error(request, 'Please select an engagement to export documents.')
+        return redirect('documents')
+
+    engagement = get_object_or_404(Engagement, id=engagement_id)
+
+    documents = RequestDocument.objects.filter(engagement=engagement).select_related(
+        'linked_control', 'linked_control__standard_control__standard', 'standard'
+    )
+
+    if standard_id:
+        documents = documents.filter(standard_id=standard_id)
+
+    if control_id:
+        documents = documents.filter(linked_control_id=control_id)
+
+    if not documents.exists():
+        messages.info(request, 'No documents found for the selected filters.')
+        return redirect(f"{reverse('documents')}?engagement={engagement.id}" +
+                        (f"&standard={standard_id}" if standard_id else "") +
+                        (f"&control={control_id}" if control_id else ""))
+
+    timestamp = timezone.now().strftime('%Y%m%d')
+    safe_engagement = ''.join(ch if ch.isalnum() or ch in ('-', '_') else '_' for ch in engagement.title)
+    filename = f"documents_{safe_engagement}_{timestamp}.zip"
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for doc in documents:
+            standard_name = None
+            if doc.standard:
+                standard_name = doc.standard.name
+            elif doc.linked_control and doc.linked_control.standard_control:
+                standard_name = doc.linked_control.standard_control.standard.name
+            if not standard_name:
+                standard_name = 'Unassigned Standard'
+
+            control_id_value = doc.linked_control.control_id if doc.linked_control else 'Unassigned Control'
+            base_dir = f"{engagement.title}/{standard_name}/{control_id_value}"
+            file_name = doc.get_file_name()
+            archive_path = f"{base_dir}/{file_name}"
+
+            try:
+                with doc.file.open('rb') as file_handle:
+                    zip_file.writestr(archive_path, file_handle.read())
+            except Exception:
+                continue
+
+    buffer.seek(0)
+    response = FileResponse(buffer, as_attachment=True, filename=filename)
+    response['Content-Type'] = 'application/zip'
+    return response
 
 @login_required
 @require_http_methods(["POST"])

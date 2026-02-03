@@ -13,6 +13,8 @@
     --bs-text: #e5e7eb;
     --bs-text-muted: #9ca3af;
     --bs-border: #374151;
+    --navbar-height: 64px;
+    --sheets-header-height: 240px;
 }
 
 body {
@@ -84,6 +86,12 @@ body > * {
     background: #0f172a !important;
     border-bottom: 1px solid var(--bs-border);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.navbar {
+    position: sticky;
+    top: 0;
+    z-index: 1200;
 }
 
 .navbar-brand {
@@ -523,6 +531,104 @@ h4, h5 {
 .table-scroll-wrapper {
     overflow-x: auto;
     width: 100%;
+}
+
+/* Sheets sticky layout */
+.sheets-page {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.sheets-header {
+    position: sticky;
+    top: var(--navbar-height);
+    z-index: 1050;
+    background: rgba(15, 17, 23, 0.98);
+    padding-top: 0.75rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--bs-border);
+    backdrop-filter: blur(6px);
+    transition: padding 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sheets-table-wrapper {
+    height: calc(100vh - var(--navbar-height) - var(--sheets-header-height));
+    overflow-y: auto;
+    scroll-behavior: smooth;
+}
+
+.sheets-table-wrapper thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: rgba(15, 17, 23, 0.98) !important;
+}
+
+/* Requests sticky layout */
+.requests-page {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - var(--navbar-height));
+}
+
+.requests-header {
+    position: sticky;
+    top: var(--navbar-height);
+    z-index: 1100;
+    background: linear-gradient(135deg, #0b1220, #0f1b2d);
+    padding: 16px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.requests-table-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+}
+
+.requests-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #0b1220;
+}
+
+.app-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: #0b1220;
+}
+
+.app-footer img {
+    height: 22px;
+    opacity: 0.9;
+}
+
+.sheets-header.collapsed {
+    padding-top: 0.35rem;
+    padding-bottom: 0.1rem;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.sheets-header.collapsed .row.mb-4 {
+    margin-bottom: 0.25rem !important;
+}
+
+.sheets-header.collapsed .sheets-engagement-card {
+    display: none;
+}
+
+.sheets-header.collapsed .sheets-selector-row {
+    margin-bottom: 0.4rem !important;
+}
+
+.sheets-header.collapsed + .sheets-table-wrapper {
+    height: calc(100vh - var(--navbar-height) - 120px);
 }
 
 .dashboard-table {

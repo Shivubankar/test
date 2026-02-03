@@ -3,6 +3,8 @@
 {% block title %}Sheets - BlackShield AuditSource{% endblock %}
 
 {% block content %}
+<div class="sheets-page">
+<div class="sheets-header" id="sheetsHeader">
 <div class="row mb-4">
     <div class="col-md-6">
         <h2>
@@ -28,7 +30,7 @@
     </div>
 </div>
 
-<div class="row mb-3">
+<div class="row mb-3 sheets-selector-row">
     <div class="col-md-4">
         <label class="form-label">Select Engagement:</label>
         <select class="form-select" id="engagementSelect">
@@ -55,7 +57,7 @@
 </div>
 
 {% if engagement %}
-<div class="card mb-4">
+<div class="card mb-4 sheets-engagement-card">
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center">
             <div>
@@ -75,9 +77,11 @@
             </div>
         </div>
     </div>
+ </div>
 </div>
 {% endif %}
 
+<div class="sheets-table-wrapper">
 <div class="card">
     <div class="card-body">
         <div class="table-scroll-wrapper">
@@ -488,6 +492,7 @@
         </div>
     </div>
 </div>
+</div>
 
 <!-- Engagement Modal - Redirect -->
 <div class="modal fade" id="engagementModal" tabindex="-1">
@@ -525,6 +530,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 {% endblock %}
 
@@ -736,4 +742,23 @@
         });
     });
 </script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const sheetsHeader = document.getElementById('sheetsHeader');
+        const tableWrapper = document.querySelector('.sheets-table-wrapper');
+        if (!sheetsHeader || !tableWrapper) return;
+
+        function toggleHeader() {
+            if (tableWrapper.scrollTop > 20) {
+                sheetsHeader.classList.add('collapsed');
+            } else {
+                sheetsHeader.classList.remove('collapsed');
+            }
+        }
+
+        tableWrapper.addEventListener('scroll', toggleHeader);
+        toggleHeader();
+    });
+</script>
+</div>
 {% endblock %}

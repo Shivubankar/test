@@ -14,6 +14,7 @@ urlpatterns = [
     path('requests/<int:pk>/', views.request_detail, name='request_detail'),
     path('create-request/<int:control_id>/', views.create_request, name='create_request'),
     path('documents/', views.documents, name='documents'),
+    path('documents/export/', views.export_documents, name='export_documents'),
     path('documents/upload/', views.documents_upload, name='documents_upload'),
     path('generate-sheets/<int:engagement_id>/', views.generate_sheets, name='generate_sheets'),
     
