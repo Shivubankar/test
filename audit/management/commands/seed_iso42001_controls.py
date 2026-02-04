@@ -1,6 +1,8 @@
 import csv
+import os
 from pathlib import Path
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
@@ -13,8 +15,8 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             "--csv",
-            default="/Users/shivakumarsh/Desktop/ISO 42001 tool checklist.csv",
-            help="Absolute path to the ISO 42001 checklist CSV.",
+            default=os.path.join(settings.BASE_DIR, "data", "iso42001_controls.csv"),
+            help="Path to the ISO 42001 checklist CSV.",
         )
         parser.add_argument(
             "--yes",
@@ -25,7 +27,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         csv_path = Path(options["csv"])
         if not csv_path.exists():
-            raise CommandError(f"CSV not found: {csv_path}")
+            raise CommandError("ISO 42001 CSV not found in /data folder")
 
         rows = []
         with csv_path.open(newline="", encoding="utf-8-sig") as file:
