@@ -21,6 +21,7 @@ class StandardControl(models.Model):
     control_id = models.CharField(max_length=100, help_text="Control identifier (e.g., A.5.1)")
     title = models.CharField(max_length=500, blank=True, help_text="Control title")
     control_description = models.TextField(help_text="Detailed control description")
+    control_objective = models.TextField(blank=True, help_text="Control objective")
     domain = models.CharField(max_length=200, blank=True, help_text="Control domain (e.g., Organizational Controls)")
     standard_reference = models.CharField(max_length=200, blank=True)
     default_testing_type = models.CharField(max_length=100, blank=True)

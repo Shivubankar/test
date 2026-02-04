@@ -118,6 +118,137 @@
                     {% for item in control_requests %}
                     {% with control=item.control request_obj=item.request request_count=item.request_count requests=item.requests workpaper_count=item.workpaper_count workpaper_docs=item.workpaper_docs %}
                     {% with questionnaire_responses=control.get_questionnaire_responses %}
+                    {% if control.standard_control and control.standard_control.standard.name == "ISO/IEC 42001:2023" %}
+                        {% if control.control_id|slice:":4" == "A.2." %}
+                            {% with section_key="A.2" section_title="Policies related to AI" section_objective="To provide management direction and support for AI systems according to business requirements." %}
+                                {% ifchanged section_key %}
+                                <tr class="section-header-row">
+                                    <td colspan="8">
+                                        <div class="section-header">
+                                            <div class="section-title">
+                                                <span class="section-id">{{ section_key }}</span>
+                                                <span class="section-name">{{ section_title }}</span>
+                                            </div>
+                                            <div class="section-objective">{{ section_objective }}</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endifchanged %}
+                            {% endwith %}
+                        {% elif control.control_id|slice:":4" == "A.3." %}
+                            {% with section_key="A.3" section_title="Internal organization" section_objective="To establish accountability within the organization to uphold its responsible approach for the implementation, operation and management of AI systems." %}
+                                {% ifchanged section_key %}
+                                <tr class="section-header-row">
+                                    <td colspan="8">
+                                        <div class="section-header">
+                                            <div class="section-title">
+                                                <span class="section-id">{{ section_key }}</span>
+                                                <span class="section-name">{{ section_title }}</span>
+                                            </div>
+                                            <div class="section-objective">{{ section_objective }}</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endifchanged %}
+                            {% endwith %}
+                        {% elif control.control_id|slice:":4" == "A.4." %}
+                            {% with section_key="A.4" section_title="Resources for AI systems" section_objective="To ensure that the organization accounts for the resources (including AI system components and assets) of the AI system in order to fully understand and address risks and impacts." %}
+                                {% ifchanged section_key %}
+                                <tr class="section-header-row">
+                                    <td colspan="8">
+                                        <div class="section-header">
+                                            <div class="section-title">
+                                                <span class="section-id">{{ section_key }}</span>
+                                                <span class="section-name">{{ section_title }}</span>
+                                            </div>
+                                            <div class="section-objective">{{ section_objective }}</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endifchanged %}
+                            {% endwith %}
+                        {% elif control.control_id|slice:":4" == "A.6." %}
+                            {% with section_key="A.6" section_title="AI system life cycle" section_objective="To ensure that the organization implements processes for the responsible design and development of AI systems." %}
+                                {% ifchanged section_key %}
+                                <tr class="section-header-row">
+                                    <td colspan="8">
+                                        <div class="section-header">
+                                            <div class="section-title">
+                                                <span class="section-id">{{ section_key }}</span>
+                                                <span class="section-name">{{ section_title }}</span>
+                                            </div>
+                                            <div class="section-objective">{{ section_objective }}</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endifchanged %}
+                            {% endwith %}
+                        {% elif control.control_id|slice:":4" == "A.7." %}
+                            {% with section_key="A.7" section_title="Data for AI systems" section_objective="To ensure that the organization understands the role and impacts of data in AI systems throughout their life cycles." %}
+                                {% ifchanged section_key %}
+                                <tr class="section-header-row">
+                                    <td colspan="8">
+                                        <div class="section-header">
+                                            <div class="section-title">
+                                                <span class="section-id">{{ section_key }}</span>
+                                                <span class="section-name">{{ section_title }}</span>
+                                            </div>
+                                            <div class="section-objective">{{ section_objective }}</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endifchanged %}
+                            {% endwith %}
+                        {% elif control.control_id|slice:":4" == "A.8." %}
+                            {% with section_key="A.8" section_title="Information for interested parties of AI systems" section_objective="To ensure that relevant interested parties have the necessary information to understand and assess the risks and their impacts." %}
+                                {% ifchanged section_key %}
+                                <tr class="section-header-row">
+                                    <td colspan="8">
+                                        <div class="section-header">
+                                            <div class="section-title">
+                                                <span class="section-id">{{ section_key }}</span>
+                                                <span class="section-name">{{ section_title }}</span>
+                                            </div>
+                                            <div class="section-objective">{{ section_objective }}</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endifchanged %}
+                            {% endwith %}
+                        {% elif control.control_id|slice:":4" == "A.9." %}
+                            {% with section_key="A.9" section_title="Use of AI systems" section_objective="To ensure that the organization uses AI systems responsibly and per organizational policies." %}
+                                {% ifchanged section_key %}
+                                <tr class="section-header-row">
+                                    <td colspan="8">
+                                        <div class="section-header">
+                                            <div class="section-title">
+                                                <span class="section-id">{{ section_key }}</span>
+                                                <span class="section-name">{{ section_title }}</span>
+                                            </div>
+                                            <div class="section-objective">{{ section_objective }}</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endifchanged %}
+                            {% endwith %}
+                        {% elif control.control_id|slice:":5" == "A.10." %}
+                            {% with section_key="A.10" section_title="Third-party and customer relationships" section_objective="To ensure that the organization understands its responsibilities and remains accountable when third parties are involved." %}
+                                {% ifchanged section_key %}
+                                <tr class="section-header-row">
+                                    <td colspan="8">
+                                        <div class="section-header">
+                                            <div class="section-title">
+                                                <span class="section-id">{{ section_key }}</span>
+                                                <span class="section-name">{{ section_title }}</span>
+                                            </div>
+                                            <div class="section-objective">{{ section_objective }}</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endifchanged %}
+                            {% endwith %}
+                        {% endif %}
+                    {% endif %}
                     <tr>
                     <td>
                         <div class="control-textbox" role="textbox" aria-readonly="true">

@@ -697,6 +697,33 @@ td.signoffs {
     overflow: hidden;
 }
 
+.section-header-row td {
+    background: #0b1220;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.section-header {
+    padding: 10px 12px;
+}
+
+.section-title {
+    font-weight: 700;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    color: var(--bs-text);
+}
+
+.section-id {
+    color: var(--bs-accent);
+}
+
+.section-objective {
+    margin-top: 4px;
+    font-size: 0.85rem;
+    color: var(--bs-text-muted);
+}
+
 /* Document list - vertical scrollable inside table cell */
 .document-list {
     max-height: 120px;
