@@ -80,8 +80,18 @@
 
 <div class="card">
     <div class="card-body">
-        <div class="table-scroll-wrapper" style="max-height: calc(100vh - 360px); overflow-y: auto;">
+        <div class="sheets-table-wrapper" style="max-height: calc(100vh - 360px);">
             <table class="table table-hover table-striped dashboard-table">
+                <colgroup>
+                    <col style="width:120px">
+                    <col style="width:300px">
+                    <col style="width:180px">
+                    <col style="width:280px">
+                    <col style="width:280px">
+                    <col style="width:180px">
+                    <col style="width:220px">
+                    <col style="width:200px">
+                </colgroup>
                 <thead>
                     <tr>
                         <th style="position: sticky; top: 0; z-index: 5; background: #020617;">Control ID</th>
@@ -110,60 +120,63 @@
                     {% with questionnaire_responses=control.get_questionnaire_responses %}
                     <tr>
                     <td>
-                        <strong>{{ control.control_id }}</strong>
-                        {% if control.control_name and control.control_name != control.control_id %}
-                        <br><small class="text-muted">{{ control.control_name }}</small>
+                        <div class="control-textbox" role="textbox" aria-readonly="true">
+                            <div class="fw-semibold">{{ control.control_id }}</div>
+                            {% if control.control_name and control.control_name != control.control_id %}
+                            <div class="text-muted small">{{ control.control_name }}</div>
+                                                    {% endif %}
+                            {% if questionnaire_responses %}
+                            <div class="badge bg-info ms-1" data-bs-toggle="tooltip" data-bs-html="true" 
+                                 title="<strong>Questionnaire Response (Read-only):</strong><br>
+                                 {% for resp in questionnaire_responses %}
+                                 <strong>{{ resp.answer }}</strong>{% if resp.response_text %}: {{ resp.response_text|truncatewords:10 }}{% endif %}<br>
+                                 {% endfor %}<br><small><em>Reference only - not audit execution</em></small>">
+                                <i class="bi bi-clipboard-check"></i> Q
+                            </div>
                                                 {% endif %}
-                        {% if questionnaire_responses %}
-                        <span class="badge bg-info ms-1" data-bs-toggle="tooltip" data-bs-html="true" 
-                              title="<strong>Questionnaire Response (Read-only):</strong><br>
-                              {% for resp in questionnaire_responses %}
-                              <strong>{{ resp.answer }}</strong>{% if resp.response_text %}: {{ resp.response_text|truncatewords:10 }}{% endif %}<br>
-                              {% endfor %}<br><small><em>Reference only - not audit execution</em></small>">
-                            <i class="bi bi-clipboard-check"></i> Q
-                        </span>
-                                            {% endif %}
+                        </div>
                     </td>
-                    <td>{{ control.control_description|truncatewords:20 }}</td>
+                    <td>
+                        <textarea class="form-control form-control-sm control-textbox" readonly>{{ control.control_description }}</textarea>
+                    </td>
                     <td>
                         {% if can_upload_workpaper %}
-                        <input type="text" class="form-control form-control-sm auto-save-field" name="test_applied_{{ control.id }}" form="updateControl{{ control.id }}" data-control-id="{{ control.id }}" data-field-name="test_applied" value="{% if control.test_applied %}{{ control.test_applied }}{% endif %}" placeholder="Describe test applied...">
+                        <textarea class="form-control form-control-sm auto-save-field control-textbox" name="test_applied_{{ control.id }}" form="updateControl{{ control.id }}" data-control-id="{{ control.id }}" data-field-name="test_applied" placeholder="Describe test applied...">{% if control.test_applied %}{{ control.test_applied }}{% endif %}</textarea>
                                     {% else %}
-                        <span class="text-muted">{% if control.test_applied %}{{ control.test_applied }}{% else %}-{% endif %}</span>
+                        <textarea class="form-control form-control-sm control-textbox" readonly>{% if control.test_applied %}{{ control.test_applied }}{% else %}-{% endif %}</textarea>
                                     {% endif %}
                     </td>
-                    <td style="min-width: 200px;">
+                    <td>
                         {% if can_upload_workpaper %}
-                        <textarea class="form-control form-control-sm auto-save-field" name="test_performed_{{ control.id }}" form="updateControl{{ control.id }}" data-control-id="{{ control.id }}" data-field-name="test_performed" rows="2" placeholder="Describe testing performed...">{% if control.test_performed %}{{ control.test_performed }}{% endif %}</textarea>
+                        <textarea class="form-control form-control-sm auto-save-field control-textbox" name="test_performed_{{ control.id }}" form="updateControl{{ control.id }}" data-control-id="{{ control.id }}" data-field-name="test_performed" placeholder="Describe testing performed...">{% if control.test_performed %}{{ control.test_performed }}{% endif %}</textarea>
                         {% else %}
-                        <small class="text-muted">{% if control.test_performed %}{{ control.test_performed|truncatewords:15 }}{% else %}-{% endif %}</small>
+                        <textarea class="form-control form-control-sm control-textbox" readonly>{% if control.test_performed %}{{ control.test_performed }}{% else %}-{% endif %}</textarea>
                                     {% endif %}
                     </td>
-                    <td style="min-width: 200px;">
+                    <td>
                         {% if can_upload_workpaper %}
-                        <textarea class="form-control form-control-sm auto-save-field" name="test_results_{{ control.id }}" form="updateControl{{ control.id }}" data-control-id="{{ control.id }}" data-field-name="test_results" rows="2" placeholder="Audit conclusion (e.g., 'No exceptions noted')...">{{ control.test_results }}</textarea>
+                        <textarea class="form-control form-control-sm auto-save-field control-textbox" name="test_results_{{ control.id }}" form="updateControl{{ control.id }}" data-control-id="{{ control.id }}" data-field-name="test_results" placeholder="Audit conclusion (e.g., 'No exceptions noted')...">{{ control.test_results }}</textarea>
                             {% else %}
-                        <small class="text-muted">{{ control.test_results|truncatewords:15|default:"-" }}</small>
+                        <textarea class="form-control form-control-sm control-textbox" readonly>{{ control.test_results|default:"-" }}</textarea>
                             {% endif %}
                         </td>
-                    <td>
+                    <td class="requests">
+                        <div class="action-cell">
                         {% if request_count > 0 %}
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="badge bg-info">
+                                <span class="badge bg-info me-1">
                                     <i class="bi bi-file-earmark-text"></i> 
                                     {{ request_count }} Request{{ request_count|pluralize }}
                                 </span>
                             {% if request_obj %}
-                                <a href="{% url 'request_detail' request_obj.id %}" class="btn btn-sm btn-outline-primary" title="View Request Details">
+                                <a href="{% url 'request_detail' request_obj.id %}" class="btn btn-sm btn-outline-primary ms-1" title="View Request Details">
                                     <i class="bi bi-eye"></i> View
                                 </a>
                                 {% endif %}
                                 {% if can_upload_evidence %}
-                                <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#evidenceUploadModal{{ control.id }}" title="Upload Evidence">
+                                <button class="btn btn-sm btn-outline-success ms-1" data-bs-toggle="modal" data-bs-target="#evidenceUploadModal{{ control.id }}" title="Upload Evidence">
                                     <i class="bi bi-upload"></i> Upload Evidence
                                                     </button>
                                                 {% endif %}
-                                            </div>
                                     {% else %}
                             {% if user_role == 'Admin' or user_role == 'Control Assessor' or user_role == 'Control Reviewer' %}
                             <form method="post" action="{% url 'create_request' control.id %}" style="display: inline;">
@@ -180,30 +193,31 @@
                                 <span class="text-muted">-</span>
                             {% endif %}
                             {% endif %}
+                        </div>
                         </td>
-                        <td>
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="badge bg-secondary">
+                        <td class="documents">
+                            <div class="action-cell">
+                            <span class="badge bg-secondary me-1">
                                 <i class="bi bi-file-earmark-text"></i> {{ workpaper_count }} Workpaper{{ workpaper_count|pluralize }}
-                                    </span>
-                                    {% if can_upload_workpaper %}
-                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#workpaperModal{{ control.id }}" title="Upload Workpapers">
+                            </span>
+                            {% if can_upload_workpaper %}
+                            <button class="btn btn-sm btn-outline-primary ms-1" data-bs-toggle="modal" data-bs-target="#workpaperModal{{ control.id }}" title="Upload Workpapers">
                                 <i class="bi bi-plus-lg"></i> Add Document
-                                        </button>
-                                    {% endif %}
+                            </button>
+                            {% endif %}
                             {% if workpaper_count > 0 %}
-                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#documentsModal{{ control.id }}" title="View Documents">
+                            <button class="btn btn-sm btn-outline-secondary ms-1" data-bs-toggle="modal" data-bs-target="#documentsModal{{ control.id }}" title="View Documents">
                                 <i class="bi bi-eye"></i> View
                             </button>
                             {% endif %}
-                        </div>
+                            </div>
                         </td>
-                    <td style="min-width: 240px;">
+                    <td class="signoffs">
+                        <div class="action-cell">
                         <style>
                             .sign-pill { border-radius: 999px; padding: 4px 10px; }
                             .sign-pill.signed { pointer-events: none; cursor: default; }
                         </style>
-                        <div class="d-flex align-items-center gap-2">
                             {% if control.preparer_signed_at %}
                                 <span class="badge bg-success sign-pill signed">
                                     <i class="bi bi-check2"></i> Signed
@@ -227,7 +241,7 @@
                                     </button>
                                 </form>
                             {% endif %}
-                            
+
                             {% if control.reviewer_signed_at %}
                                 <span class="badge bg-success sign-pill signed">
                                     <i class="bi bi-check2"></i> Signed
@@ -251,10 +265,10 @@
                                     </button>
                                 </form>
                             {% endif %}
-                        </div>
                         <div class="mt-1 small text-muted">
                             {% if control.preparer_signed_at %}P: {{ control.preparer_signed_by.get_full_name|default:control.preparer_signed_by.username }} on {{ control.preparer_signed_at|date:"Y-m-d" }}{% endif %}
                             {% if control.reviewer_signed_at %}{% if control.preparer_signed_at %} | {% endif %}R: {{ control.reviewer_signed_by.get_full_name|default:control.reviewer_signed_by.username }} on {{ control.reviewer_signed_at|date:"Y-m-d" }}{% endif %}
+                        </div>
                         </div>
                     </td>
                     </tr>
