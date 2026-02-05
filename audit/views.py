@@ -873,7 +873,12 @@ def requests_list(request):
     
     # Get all requests for these controls
     all_requests = Request.objects.filter(linked_control__in=controls).select_related(
-        'linked_control', 'linked_control__standard_control__standard', 'assignee', 'prepared_by', 'reviewed_by'
+        'linked_control',
+        'linked_control__standard_control__standard',
+        'assignee',
+        'prepared_by',
+        'reviewed_by',
+        'merged_into',
     )
     
     # Filter by status if provided
@@ -900,6 +905,7 @@ def requests_list(request):
         'OPEN': base_requests.filter(status='OPEN').count(),
         'READY_FOR_REVIEW': base_requests.filter(status='READY_FOR_REVIEW').count(),
         'COMPLETED': base_requests.filter(status='COMPLETED').count(),
+        'MERGED': base_requests.filter(status='MERGED').count(),
     }
     
     # Prefetch document counts for each request
@@ -908,6 +914,12 @@ def requests_list(request):
         evidence_count=Count('documents', filter=Q(documents__doc_type='evidence')),
         workpaper_count=Count('documents', filter=Q(documents__doc_type='workpaper'))
     )
+
+    merge_candidates = Request.objects.filter(
+        linked_control__in=controls,
+        status='OPEN',
+        merged_into__isnull=True,
+    ).select_related('linked_control').order_by('linked_control__control_id', 'id')
     
     # Get engagements with their standards for dropdown
     engagements = Engagement.objects.prefetch_related('standards').all()
@@ -931,6 +943,7 @@ def requests_list(request):
         'status_filter': status_filter,
         'q': q,
         'counts': counts,
+        'merge_candidates': merge_candidates,
     }
     
     return render(request, 'audit/requests_list.html', context)
@@ -982,6 +995,84 @@ def create_request(request, control_id):
     except Exception as e:
         messages.error(request, f'Error creating request: {str(e)}')
         return redirect('requests_list')
+
+
+@login_required
+@require_http_methods(["POST"])
+@role_required([ROLE_ADMIN, ROLE_CONTROL_ASSESSOR, ROLE_CONTROL_REVIEWER])
+def merge_request(request, request_id):
+    """
+    Merge an OPEN request into another OPEN request (parent).
+    Sets status to Closed – Merged and locks the request.
+    """
+    req = get_object_or_404(Request, id=request_id)
+    parent_id = request.POST.get('parent_request_id')
+
+    if not parent_id:
+        messages.error(request, 'Please select a parent request.')
+        return redirect('requests_list')
+
+    parent = get_object_or_404(Request, id=parent_id)
+
+    if req.id == parent.id:
+        messages.error(request, 'Cannot merge a request into itself.')
+        return redirect('requests_list')
+
+    if req.merged_into_id:
+        messages.error(request, 'This request has already been merged.')
+        return redirect('requests_list')
+
+    if req.status != 'OPEN':
+        messages.error(request, 'Only OPEN requests can be merged.')
+        return redirect('requests_list')
+
+    if parent.status != 'OPEN' or parent.merged_into_id:
+        messages.error(request, 'Parent request must be OPEN and not merged.')
+        return redirect('requests_list')
+
+    req.merged_into = parent
+    req.status = 'MERGED'
+    req.is_locked = True
+    req.save(update_fields=['merged_into', 'status', 'is_locked'])
+
+    messages.success(request, f'Request merged into RQ-{parent.id}.')
+    engagement_id = req.linked_control.engagement.id if req.linked_control else None
+    if engagement_id:
+        return redirect(f"{reverse('requests_list')}?engagement={engagement_id}")
+    return redirect('requests_list')
+
+
+@login_required
+@require_http_methods(["POST"])
+@role_required([ROLE_ADMIN, ROLE_CONTROL_ASSESSOR, ROLE_CONTROL_REVIEWER])
+def undo_merge_request(request, request_id):
+    """
+    Undo a merge for a previously merged request.
+    """
+    req = get_object_or_404(Request, id=request_id)
+
+    if req.status != 'MERGED':
+        messages.error(request, 'Only merged requests can be undone.')
+        return redirect('requests_list')
+
+    if not req.merged_into_id:
+        messages.error(request, 'Parent request no longer exists.')
+        return redirect('requests_list')
+
+    if req.documents.exists():
+        messages.error(request, 'Cannot undo merge: this request has documents attached.')
+        return redirect('requests_list')
+
+    req.merged_into = None
+    req.status = 'OPEN'
+    req.is_locked = False
+    req.save(skip_recalculate=True, update_fields=['merged_into', 'status', 'is_locked'])
+
+    messages.success(request, 'Merge undone. Request is now OPEN.')
+    engagement_id = req.linked_control.engagement.id if req.linked_control else None
+    if engagement_id:
+        return redirect(f"{reverse('requests_list')}?engagement={engagement_id}")
+    return redirect('requests_list')
 
 
 @login_required
@@ -1250,6 +1341,10 @@ def upload_evidence(request, request_id):
         if not user_in_roles(request.user, [ROLE_ADMIN, ROLE_CONTROL_ASSESSOR, ROLE_CONTROL_REVIEWER, ROLE_CLIENT]):
             messages.error(request, 'Permission denied.')
             return redirect('request_detail', pk=req.id)
+
+        if req.merged_into_id:
+            messages.error(request, 'This request has been merged and cannot be modified.')
+            return redirect('request_detail', pk=req.id)
         
         # Check if request is locked (Accepted requests cannot be modified by Clients)
         if req.is_locked and req.status == 'COMPLETED' and user_role == ROLE_CLIENT:
@@ -1323,6 +1418,9 @@ def upload_evidence_from_sheets(request, control_id):
         
         if request_id:
             req = get_object_or_404(Request, id=request_id, linked_control=control)
+            if req.merged_into_id:
+                messages.error(request, 'This request has been merged and cannot be modified.')
+                return redirect(f"{reverse('sheets')}?engagement={control.engagement.id}")
         else:
             # Auto-create request if none exists
             # Find latest OPEN request for this control
@@ -1466,6 +1564,10 @@ def signoff_request(request, request_id):
     req = get_object_or_404(Request, id=request_id)
     role = request.POST.get('role')
     now = timezone.now()
+
+    if req.merged_into_id:
+        messages.error(request, 'Merged requests cannot be signed off.')
+        return redirect('request_detail', pk=req.id)
     
     if role == 'preparer':
         # Permission check: Admin or Control Assessor can sign as Preparer
@@ -1513,6 +1615,10 @@ def undo_signoff_request(request, request_id):
     """
     req = get_object_or_404(Request, id=request_id)
     role = request.POST.get('role')
+
+    if req.merged_into_id:
+        messages.error(request, 'Merged requests cannot be updated.')
+        return redirect('request_detail', pk=req.id)
     
     if role == 'preparer':
         # Permission check: Only the user who signed can undo, or Admin
@@ -1562,6 +1668,10 @@ def unlock_request(request, request_id):
     """
     req = get_object_or_404(Request, id=request_id)
     user_role = get_user_role(request.user)
+
+    if req.merged_into_id:
+        messages.error(request, 'Merged requests cannot be unlocked.')
+        return redirect('request_detail', pk=req.id)
     
     if not user_in_roles(request.user, [ROLE_ADMIN, ROLE_CONTROL_ASSESSOR, ROLE_CONTROL_REVIEWER]):
         messages.error(request, 'Only administrators, control assessors, or control reviewers can unlock requests.')
@@ -1636,6 +1746,10 @@ def delete_document(request, doc_id):
         if engagement_id:
             return redirect(f"{reverse('documents')}?engagement={engagement_id}")
         return redirect('documents')
+
+    if doc.request and doc.request.merged_into_id:
+        messages.error(request, 'Cannot delete documents for merged requests.')
+        return redirect('request_detail', pk=doc.request.id)
 
     # Get engagement and request before deleting
     engagement_id = doc.engagement.id if doc.engagement else None

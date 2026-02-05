@@ -268,7 +268,9 @@
                                             <td><input type="checkbox" class="form-check-input request-checkbox" value="{{ req.id }}"></td>
                                             <td><strong>{{ req.linked_control.control_id }}</strong></td>
                                             <td>
-                                                {% if req.status == 'OPEN' %}
+                                                {% if req.status == 'MERGED' %}
+                                                <span class="status-badge status-badge-completed">Closed – Merged</span>
+                                                {% elif req.status == 'OPEN' %}
                                                 <span class="status-badge status-badge-open"><span class="status-dot open"></span>Open</span>
                                                 {% elif req.status == 'READY_FOR_REVIEW' %}
                                                 <span class="status-badge status-badge-ready"><span class="status-dot ready"></span>Ready for Review</span>
@@ -277,7 +279,9 @@
                                                 {% else %}
                                                 <span class="status-badge status-badge-open">{{ req.status }}</span>
                                                 {% endif %}
-                                                {% if req.is_locked %}
+                                                {% if req.merged_into %}
+                                                <br><small class="text-muted">Merged into RQ-{{ req.merged_into.id }}</small>
+                                                {% elif req.is_locked %}
                                                 <br><small class="text-muted"><i class="bi bi-lock"></i> Locked</small>
                                                 {% endif %}
                                             </td>
@@ -327,6 +331,24 @@
                                                         <i class="bi bi-paperclip"></i>
                                                     </a>
                                                     {% endif %}
+                                                    {% if req.status == 'OPEN' and not req.merged_into %}
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-primary action-btn"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#mergeModal{{ req.id }}"
+                                                            title="Merge Request">
+                                                        <i class="bi bi-intersect"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                    {% if req.status == 'MERGED' %}
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-warning action-btn"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#undoMergeModal{{ req.id }}"
+                                                            title="Undo Merge">
+                                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                                    </button>
+                                                    {% endif %}
                                                 </div>
                                             </td>
                                         </tr>
@@ -334,6 +356,69 @@
                                     </tbody>
                                 </table>
                             </div>
+                            {% for req in requests %}
+                                {% if req.status == 'OPEN' and not req.merged_into %}
+                                <div class="modal fade" id="mergeModal{{ req.id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Merge Request RQ-{{ req.id }}</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form method="post" action="{% url 'merge_request' req.id %}">
+                                                {% csrf_token %}
+                                                <div class="modal-body">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Merge into (Parent Request)</label>
+                                                        <select class="form-select" name="parent_request_id" required>
+                                                            <option value="">Select an open request</option>
+                                                            {% for candidate in merge_candidates %}
+                                                                {% if candidate.id != req.id %}
+                                                                <option value="{{ candidate.id }}">
+                                                                    RQ-{{ candidate.id }} — {{ candidate.linked_control.control_id }}{% if candidate.title %} — {{ candidate.title|truncatechars:40 }}{% endif %}
+                                                                </option>
+                                                                {% endif %}
+                                                            {% endfor %}
+                                                        </select>
+                                                    </div>
+                                                    <div class="alert alert-warning mb-0">
+                                                        This will close the current request and merge it into the selected parent.
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-primary">Confirm Merge</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if req.status == 'MERGED' %}
+                                <div class="modal fade" id="undoMergeModal{{ req.id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Undo Merge RQ-{{ req.id }}</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form method="post" action="{% url 'undo_merge_request' req.id %}">
+                                                {% csrf_token %}
+                                                <div class="modal-body">
+                                                    <div class="alert alert-warning mb-0">
+                                                        This will reopen the request. Undo is blocked if evidence exists.
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-warning">Undo Merge</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
                             {% else %}
                             <div class="text-center py-5">
                                 <i class="bi bi-inbox text-muted" style="font-size: 3.5rem;"></i>

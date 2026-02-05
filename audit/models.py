@@ -151,6 +151,7 @@ class Request(models.Model):
         ('OPEN', 'Open'),
         ('READY_FOR_REVIEW', 'Ready for Review'),
         ('COMPLETED', 'Completed'),
+        ('MERGED', 'Closed – Merged'),
     ]
     
     linked_control = models.ForeignKey(EngagementControl, on_delete=models.CASCADE, related_name='requests')
@@ -174,6 +175,16 @@ class Request(models.Model):
     reviewer_signed = models.BooleanField(default=False)
     reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_requests')
     reviewed_at = models.DateTimeField(null=True, blank=True)  # Keep existing field name for compatibility
+
+    # Merge tracking
+    merged_into = models.ForeignKey(
+        'self',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='merged_children',
+        help_text="Parent request this request was merged into.",
+    )
     
     # Locking (for completed requests - evidence becomes read-only)
     is_locked = models.BooleanField(default=False)
@@ -196,6 +207,11 @@ class Request(models.Model):
         - READY_FOR_REVIEW: preparer_signed = True AND reviewer_signed = False
         - COMPLETED: preparer_signed = True AND reviewer_signed = True
         """
+        if self.merged_into_id:
+            self.status = 'MERGED'
+            self.is_locked = True
+            self.save(update_fields=['status', 'is_locked'])
+            return
         # Status is derived from sign-off flags only
         if not self.preparer_signed:
             new_status = 'OPEN'
@@ -222,6 +238,16 @@ class Request(models.Model):
         """
         skip_recalculate = kwargs.pop('skip_recalculate', False)
         update_fields = kwargs.get('update_fields', None)
+
+        if self.merged_into_id or self.status == 'MERGED':
+            self.status = 'MERGED'
+            self.is_locked = True
+            if update_fields:
+                update_fields = set(update_fields)
+                update_fields.update({'status', 'is_locked', 'merged_into'})
+                kwargs['update_fields'] = list(update_fields)
+            super().save(*args, **kwargs)
+            return
         
         if not skip_recalculate and not update_fields:
             # Recalculate status based on sign-off flags
